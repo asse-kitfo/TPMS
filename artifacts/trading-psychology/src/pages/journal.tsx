@@ -1,268 +1,129 @@
-import { useState } from "react";
-import { 
-  useListTrades, 
-  useUpdateTrade,
-  getListTradesQueryKey
-} from "@workspace/api-client-react";
-import type { Trade } from "@workspace/api-client-react";
-type TradeOutcome = "WIN" | "LOSS" | "BREAKEVEN";
-type TradeInterferenceType = "CLOSED_EARLY" | "MOVED_SL" | "REVENGE" | "OVERSIZE";
+import { useListTrades } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Loader2, List as ListIcon, FileEdit, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { LucideIcon } from "lucide-react";
-
-function TooltipIcon({ icon: Icon, color, tooltip }: { icon: LucideIcon; color: string; tooltip: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span><Icon className={`h-4 w-4 ${color}`} /></span>
-      </TooltipTrigger>
-      <TooltipContent><p>{tooltip}</p></TooltipContent>
-    </Tooltip>
-  );
-}
-import { useQueryClient } from "@tanstack/react-query";
+import { Loader2, CheckCircle2, XCircle, TrendingUp, TrendingDown, Brain } from "lucide-react";
 import { format } from "date-fns";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 
+function gradeColor(grade: string) {
+  if (grade === "A_PLUS") return "bg-primary/20 text-primary border-primary/30";
+  if (grade === "B") return "bg-amber-500/20 text-amber-400 border-amber-500/30";
+  return "bg-destructive/20 text-red-400 border-destructive/30";
+}
 
-export default function TradeJournal() {
-  const queryClient = useQueryClient();
+function outcomeColor(outcome: string | null | undefined) {
+  if (outcome === "WIN") return "text-green-400";
+  if (outcome === "LOSS") return "text-red-400";
+  if (outcome === "BREAKEVEN") return "text-amber-400";
+  return "text-muted-foreground";
+}
+
+export default function Debrief() {
   const { data: trades, isLoading } = useListTrades();
-  const updateTrade = useUpdateTrade();
-  
-  const [filter, setFilter] = useState("ALL");
-  const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
-
-  const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!editingTrade) return;
-
-    const formData = new FormData(e.currentTarget);
-    const outcome = formData.get("outcome") as TradeOutcome | "";
-    const followedPlan = formData.get("followedPlan") === "true";
-    const interfered = formData.get("interfered") === "true";
-    const interferenceType = formData.get("interferenceType") as TradeInterferenceType | "";
-    const notes = formData.get("notes") as string;
-
-    updateTrade.mutate(
-      {
-        id: editingTrade.id,
-        data: {
-          outcome: outcome || undefined,
-          followedPlan,
-          interfered,
-          interferenceType: interferenceType || undefined,
-          notes,
-          closedAt: new Date().toISOString()
-        }
-      },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListTradesQueryKey() });
-          setEditingTrade(null);
-        }
-      }
-    );
-  };
-
-  const filteredTrades = trades?.filter(t => {
-    if (filter === "ALL") return true;
-    if (filter === "OPEN") return !t.outcome;
-    if (filter === "WIN") return t.outcome === "WIN";
-    if (filter === "LOSS") return t.outcome === "LOSS";
-    return true;
-  }) || [];
 
   if (isLoading) return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
+  const completed = trades?.filter((t) => t.outcome !== null) ?? [];
+  const totalFollowed = completed.filter((t) => t.followedPlan).length;
+  const planRate = completed.length > 0 ? Math.round((totalFollowed / completed.length) * 100) : null;
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <ListIcon className="h-8 w-8 text-primary" /> Trade Journal
+            <Brain className="h-8 w-8 text-primary" /> Trade Debrief Log
           </h1>
-          <p className="text-muted-foreground">Historical records and post-trade reviews.</p>
+          <p className="text-muted-foreground mt-1">Post-trade psychological records. Not performance metrics.</p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Filter..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Trades</SelectItem>
-              <SelectItem value="OPEN">Open Only</SelectItem>
-              <SelectItem value="WIN">Wins</SelectItem>
-              <SelectItem value="LOSS">Losses</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {planRate !== null && (
+          <div className="text-right">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest">Rules Followed</p>
+            <p className={`text-3xl font-black font-mono ${planRate >= 70 ? "text-primary" : planRate >= 50 ? "text-amber-400" : "text-destructive"}`}>{planRate}%</p>
+          </div>
+        )}
       </div>
 
-      <Card className="border-border/50 shadow-sm">
-        <div className="rounded-md border border-border/50">
-          <Table>
-            <TableHeader className="bg-secondary/20">
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Pair</TableHead>
-                <TableHead>Grade</TableHead>
-                <TableHead>Direction</TableHead>
-                <TableHead>Outcome</TableHead>
-                <TableHead>Discipline</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTrades.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-48 text-center text-muted-foreground">
-                    No trades found matching criteria.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredTrades.map((trade) => (
-                  <TableRow key={trade.id} className="hover:bg-secondary/10">
-                    <TableCell className="font-mono text-sm text-muted-foreground">
+      {completed.length === 0 ? (
+        <Card>
+          <CardContent className="py-16 text-center text-muted-foreground">
+            <Brain className="h-12 w-12 mx-auto opacity-20 mb-4" />
+            <p>No completed trade debriefs yet.</p>
+            <p className="text-sm mt-1">Complete a trade in the Active Monitor to see records here.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {completed.map((trade) => (
+            <Card key={trade.id} className={`border ${trade.followedPlan ? "border-border" : "border-destructive/20 bg-destructive/5"}`}>
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="font-mono font-black text-lg">{(trade.pair ?? "—").toUpperCase()}</span>
+
+                    {trade.direction === "LONG" ? (
+                      <span className="flex items-center gap-1 text-green-400 text-sm font-bold"><TrendingUp className="h-3 w-3" />LONG</span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-red-400 text-sm font-bold"><TrendingDown className="h-3 w-3" />SHORT</span>
+                    )}
+
+                    <Badge variant="outline" className={`text-xs ${gradeColor(trade.setupGrade ?? "")}`}>
+                      {trade.setupGrade === "A_PLUS" ? "A+" : trade.setupGrade}
+                    </Badge>
+
+                    <span className={`font-bold font-mono ${outcomeColor(trade.outcome)}`}>
+                      {trade.outcome ?? "OPEN"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    {trade.followedPlan === true && (
+                      <div className="flex items-center gap-1 text-green-400 text-xs font-medium">
+                        <CheckCircle2 className="h-4 w-4" /> Followed rules
+                      </div>
+                    )}
+                    {trade.followedPlan === false && (
+                      <div className="flex items-center gap-1 text-red-400 text-xs font-medium">
+                        <XCircle className="h-4 w-4" /> Broke rules
+                      </div>
+                    )}
+                    <span className="text-xs text-muted-foreground font-mono">
                       {format(new Date(trade.createdAt), "MMM d, HH:mm")}
-                    </TableCell>
-                    <TableCell className="font-bold">{trade.pair}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={trade.setupGrade === 'A_PLUS' ? 'text-primary border-primary/50' : 'text-muted-foreground'}>
-                        {trade.setupGrade}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`font-mono text-xs font-bold ${trade.direction === 'LONG' ? 'text-green-500' : 'text-destructive'}`}>
-                        {trade.direction}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {trade.outcome ? (
-                        <Badge className={`
-                          ${trade.outcome === 'WIN' ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20' : ''}
-                          ${trade.outcome === 'LOSS' ? 'bg-destructive/10 text-destructive hover:bg-destructive/20' : ''}
-                          ${trade.outcome === 'BREAKEVEN' ? 'bg-secondary text-secondary-foreground hover:bg-secondary' : ''}
-                        `}>
-                          {trade.outcome}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="border-dashed animate-pulse text-amber-500 border-amber-500">OPEN</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                       {trade.outcome && (
-                         <div className="flex gap-2">
-                           {trade.followedPlan ? (
-                             <TooltipIcon icon={CheckCircle2} color="text-green-500" tooltip="Followed Plan" />
-                           ) : (
-                             <TooltipIcon icon={XCircle} color="text-destructive" tooltip="Broke Plan" />
-                           )}
-                           {trade.interfered && (
-                             <TooltipIcon icon={AlertTriangle} color="text-amber-500" tooltip={`Interfered: ${trade.interferenceType}`} />
-                           )}
-                         </div>
-                       )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Dialog open={editingTrade?.id === trade.id} onOpenChange={(open) => !open && setEditingTrade(null)}>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm" onClick={() => setEditingTrade(trade)}>
-                            <FileEdit className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[500px]">
-                          <DialogHeader>
-                            <DialogTitle>Update Trade: {trade.pair}</DialogTitle>
-                          </DialogHeader>
-                          <form onSubmit={handleUpdate} className="space-y-4 pt-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="outcome">Outcome</Label>
-                                <Select name="outcome" defaultValue={trade.outcome || undefined}>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select outcome" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="WIN">WIN</SelectItem>
-                                    <SelectItem value="LOSS">LOSS</SelectItem>
-                                    <SelectItem value="BREAKEVEN">BREAKEVEN</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                            
-                            <div className="space-y-2 pt-2 border-t">
-                              <Label>Discipline Review</Label>
-                              <div className="grid grid-cols-2 gap-4 pt-2">
-                                <div className="space-y-2">
-                                  <Label className="text-xs text-muted-foreground">Followed Plan?</Label>
-                                  <Select name="followedPlan" defaultValue={trade.followedPlan ? "true" : "false"}>
-                                    <SelectTrigger><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="true">Yes</SelectItem>
-                                      <SelectItem value="false">No</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div className="space-y-2">
-                                  <Label className="text-xs text-muted-foreground">Interfered?</Label>
-                                  <Select name="interfered" defaultValue={trade.interfered ? "true" : "false"}>
-                                    <SelectTrigger><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="false">No</SelectItem>
-                                      <SelectItem value="true">Yes</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              </div>
-                            </div>
+                    </span>
+                  </div>
+                </div>
 
-                            <div className="space-y-2">
-                               <Label className="text-xs text-muted-foreground">Interference Type (If Yes)</Label>
-                               <Select name="interferenceType" defaultValue={trade.interferenceType || undefined}>
-                                 <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                                 <SelectContent>
-                                   <SelectItem value="CLOSED_EARLY">Closed Early</SelectItem>
-                                   <SelectItem value="MOVED_SL">Moved Stop Loss</SelectItem>
-                                   <SelectItem value="REVENGE">Revenge Trade</SelectItem>
-                                   <SelectItem value="OVERSIZE">Oversize</SelectItem>
-                                 </SelectContent>
-                               </Select>
-                             </div>
+                {trade.notes && (
+                  <div className="mt-3 pt-3 border-t border-border/50">
+                    <p className="text-sm text-muted-foreground italic">"{trade.notes}"</p>
+                  </div>
+                )}
 
-                            <div className="space-y-2">
-                              <Label>Notes</Label>
-                              <Input name="notes" defaultValue={trade.notes || ""} placeholder="What were you thinking during execution?" />
-                            </div>
-
-                            <div className="pt-4 flex justify-end">
-                              <Button type="submit" disabled={updateTrade.isPending}>
-                                {updateTrade.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Outcome"}
-                              </Button>
-                            </div>
-                          </form>
-                        </DialogContent>
-                      </Dialog>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                {trade.followedPlan === false && !trade.notes && (
+                  <div className="mt-3 pt-3 border-t border-destructive/20">
+                    <p className="text-xs text-destructive/70">No psychological note recorded for this interference.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </Card>
+      )}
+
+      {trades && trades.filter((t) => !t.outcome).length > 0 && (
+        <div>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Open / Unresolved</p>
+          <div className="space-y-2">
+            {trades.filter((t) => !t.outcome).map((trade) => (
+              <div key={trade.id} className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-border/50 text-muted-foreground text-sm">
+                <span className="font-mono font-bold text-foreground">{(trade.pair ?? "—").toUpperCase()}</span>
+                <span>{trade.direction}</span>
+                <Badge variant="outline" className="text-xs border-border/50">OPEN</Badge>
+                <span className="ml-auto font-mono text-xs">{format(new Date(trade.createdAt), "MMM d, HH:mm")}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-
