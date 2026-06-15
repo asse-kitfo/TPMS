@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Trading Psychology System"
+version = "1.0.0"
+id = "artifacts/trading-psychology"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21714
+
+[services.development]
+run = "pnpm --filter @workspace/trading-psychology run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/trading-psychology", "run", "build" ]
+publicDir = "artifacts/trading-psychology/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21714"
+BASE_PATH = "/"

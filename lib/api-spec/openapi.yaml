@@ -3,20 +3,26 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Forex Trading Psychology System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: session
+    description: Trading session management
+  - name: trades
+    description: Trade journal entries
+  - name: stats
+    description: Behavioral analytics
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +30,529 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── Session endpoints ──────────────────────────────────────────────
+  /sessions/current:
+    get:
+      operationId: getCurrentSession
+      tags: [session]
+      summary: Get the active trading session
+      responses:
+        "200":
+          description: Active session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "404":
+          description: No active session
+
+  /sessions:
+    post:
+      operationId: startSession
+      tags: [session]
+      summary: Start a new trading session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionInput"
+      responses:
+        "201":
+          description: Session started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+    get:
+      operationId: listSessions
+      tags: [session]
+      summary: List all past trading sessions
+      responses:
+        "200":
+          description: Sessions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Session"
+
+  /sessions/{id}:
+    patch:
+      operationId: updateSession
+      tags: [session]
+      summary: Update session (change mode, end session)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionUpdate"
+      responses:
+        "200":
+          description: Session updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+
+  # ── Pre-trade check endpoints ──────────────────────────────────────
+  /checks:
+    post:
+      operationId: submitCheck
+      tags: [session]
+      summary: Submit a pre-trade psychological check and get a verdict
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckInput"
+      responses:
+        "201":
+          description: Check result with verdict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckResult"
+    get:
+      operationId: listChecks
+      tags: [session]
+      summary: List pre-trade checks for the current session
+      parameters:
+        - name: sessionId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of checks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CheckResult"
+
+  # ── Trade journal endpoints ────────────────────────────────────────
+  /trades:
+    get:
+      operationId: listTrades
+      tags: [trades]
+      summary: List all trade journal entries
+      responses:
+        "200":
+          description: Trade entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Trade"
+    post:
+      operationId: createTrade
+      tags: [trades]
+      summary: Log a new trade
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TradeInput"
+      responses:
+        "201":
+          description: Trade logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trade"
+
+  /trades/{id}:
+    get:
+      operationId: getTrade
+      tags: [trades]
+      summary: Get a single trade
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Trade entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trade"
+    patch:
+      operationId: updateTrade
+      tags: [trades]
+      summary: Update trade outcome/notes after closing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TradeUpdate"
+      responses:
+        "200":
+          description: Trade updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trade"
+    delete:
+      operationId: deleteTrade
+      tags: [trades]
+      summary: Delete a trade entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Analytics / Wow endpoints ──────────────────────────────────────
+  /stats/summary:
+    get:
+      operationId: getStatsSummary
+      tags: [stats]
+      summary: Get overall behavioral performance summary
+      responses:
+        "200":
+          description: Stats summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsSummary"
+
+  /stats/patterns:
+    get:
+      operationId: getBehavioralPatterns
+      tags: [stats]
+      summary: Detect behavioral patterns (overtrading, emotional entries, impulse)
+      responses:
+        "200":
+          description: Behavioral pattern insights
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BehavioralPattern"
+
+  /stats/grade-breakdown:
+    get:
+      operationId: getGradeBreakdown
+      tags: [stats]
+      summary: Trade quality breakdown by setup grade
+      responses:
+        "200":
+          description: Grade breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GradeBreakdown"
+
+  /stats/discipline-streak:
+    get:
+      operationId: getDisciplineStreak
+      tags: [stats]
+      summary: Current and best discipline streaks (consecutive plan-followed trades)
+      responses:
+        "200":
+          description: Streak data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DisciplineStreak"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    # ── Session ────────────────────────────────────────────────────
+    Session:
+      type: object
+      required: [id, mode, lossCount, ruleBreaks, createdAt]
+      properties:
+        id:
+          type: integer
+        mode:
+          type: string
+          enum: [ANALYSIS, PRE_TRADE, EXECUTION, LOCKED]
+        lossCount:
+          type: integer
+        ruleBreaks:
+          type: integer
+        notes:
+          type: ["string", "null"]
+        endedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    SessionInput:
+      type: object
+      properties:
+        notes:
+          type: string
+
+    SessionUpdate:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [ANALYSIS, PRE_TRADE, EXECUTION, LOCKED]
+        lossCount:
+          type: integer
+        ruleBreaks:
+          type: integer
+        notes:
+          type: string
+        endedAt:
+          type: string
+
+    # ── Pre-trade Check ────────────────────────────────────────────
+    CheckInput:
+      type: object
+      required: [sessionId, setupGrade, psychState, focusLevel, urgeLevel, decisionClarity, pair]
+      properties:
+        sessionId:
+          type: integer
+        pair:
+          type: string
+        setupGrade:
+          type: string
+          enum: [A_PLUS, B, C]
+        psychState:
+          type: string
+          enum: [CALM, FOCUSED, URGE, PRESSURE, FEAR, OVERCONFIDENT]
+        focusLevel:
+          type: integer
+          minimum: 1
+          maximum: 10
+        urgeLevel:
+          type: integer
+          minimum: 1
+          maximum: 10
+        decisionClarity:
+          type: integer
+          minimum: 1
+          maximum: 10
+        patience:
+          type: integer
+          minimum: 1
+          maximum: 10
+        notes:
+          type: string
+
+    CheckResult:
+      type: object
+      required: [id, sessionId, pair, setupGrade, psychState, focusLevel, urgeLevel, decisionClarity, verdict, createdAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        pair:
+          type: string
+        setupGrade:
+          type: string
+          enum: [A_PLUS, B, C]
+        psychState:
+          type: string
+          enum: [CALM, FOCUSED, URGE, PRESSURE, FEAR, OVERCONFIDENT]
+        focusLevel:
+          type: integer
+        urgeLevel:
+          type: integer
+        decisionClarity:
+          type: integer
+        patience:
+          type: ["integer", "null"]
+        verdict:
+          type: string
+          enum: [TRADE, REDUCE_RISK, NO_TRADE, HARD_BLOCK]
+        verdictReason:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    # ── Trade ──────────────────────────────────────────────────────
+    Trade:
+      type: object
+      required: [id, sessionId, pair, setupGrade, direction, createdAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        pair:
+          type: string
+        setupGrade:
+          type: string
+          enum: [A_PLUS, B, C]
+        direction:
+          type: string
+          enum: [LONG, SHORT]
+        entryPrice:
+          type: ["number", "null"]
+        stopLoss:
+          type: ["number", "null"]
+        takeProfit:
+          type: ["number", "null"]
+        outcome:
+          type: ["string", "null"]
+          enum: [WIN, LOSS, BREAKEVEN, null]
+        followedPlan:
+          type: ["boolean", "null"]
+        interfered:
+          type: ["boolean", "null"]
+        interferenceType:
+          type: ["string", "null"]
+          enum: [CLOSED_EARLY, MOVED_SL, REVENGE, OVERSIZE, null]
+        emotionalState:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        closedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    TradeInput:
+      type: object
+      required: [sessionId, pair, setupGrade, direction]
+      properties:
+        sessionId:
+          type: integer
+        pair:
+          type: string
+        setupGrade:
+          type: string
+          enum: [A_PLUS, B, C]
+        direction:
+          type: string
+          enum: [LONG, SHORT]
+        entryPrice:
+          type: number
+        stopLoss:
+          type: number
+        takeProfit:
+          type: number
+        notes:
+          type: string
+
+    TradeUpdate:
+      type: object
+      properties:
+        outcome:
+          type: string
+          enum: [WIN, LOSS, BREAKEVEN]
+        followedPlan:
+          type: boolean
+        interfered:
+          type: boolean
+        interferenceType:
+          type: string
+          enum: [CLOSED_EARLY, MOVED_SL, REVENGE, OVERSIZE]
+        emotionalState:
+          type: string
+        notes:
+          type: string
+        closedAt:
+          type: string
+
+    # ── Analytics ──────────────────────────────────────────────────
+    StatsSummary:
+      type: object
+      required: [totalTrades, winRate, planFollowRate, interferenceRate, hardBlockCount, totalSessions]
+      properties:
+        totalTrades:
+          type: integer
+        winRate:
+          type: number
+        planFollowRate:
+          type: number
+        interferenceRate:
+          type: number
+        hardBlockCount:
+          type: integer
+        totalSessions:
+          type: integer
+        avgFocusLevel:
+          type: ["number", "null"]
+        avgUrgeLevel:
+          type: ["number", "null"]
+
+    BehavioralPattern:
+      type: object
+      required: [type, label, severity, count, insight]
+      properties:
+        type:
+          type: string
+          enum: [OVERTRADING, EMOTIONAL_ENTRY, IMPULSE_TRADE, INTERFERENCE, REVENGE_TRADING, WEAK_SETUP]
+        label:
+          type: string
+        severity:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        count:
+          type: integer
+        insight:
+          type: string
+
+    GradeBreakdown:
+      type: object
+      required: [grade, count, winRate, planFollowRate]
+      properties:
+        grade:
+          type: string
+          enum: [A_PLUS, B, C]
+        count:
+          type: integer
+        winRate:
+          type: number
+        planFollowRate:
+          type: number
+
+    DisciplineStreak:
+      type: object
+      required: [currentStreak, bestStreak, totalFollowed, totalTrades]
+      properties:
+        currentStreak:
+          type: integer
+        bestStreak:
+          type: integer
+        totalFollowed:
+          type: integer
+        totalTrades:
+          type: integer
