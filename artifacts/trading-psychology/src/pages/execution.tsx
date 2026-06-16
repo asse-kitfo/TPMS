@@ -22,7 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
 
-type Phase = "SETUP" | "LIVE" | "AMYGDALA_ALERT" | "BREATHING" | "BRAIN_STATE_CHECK" | "DEBRIEF";
+type Phase = "SETUP" | "LIVE" | "AMYGDALA_ALERT" | "VOLUNTARY_BREATHING" | "BRAIN_STATE_CHECK" | "DEBRIEF";
 type InterferenceIntent = "CLOSE_EARLY" | "MOVE_SL" | "ADD_SIZE";
 type BreathPhase = "INHALE" | "HOLD" | "EXHALE";
 
@@ -238,6 +238,26 @@ export default function ActiveTradeMonitor() {
           <p className="text-muted-foreground">Start a session from the Psychology Hub first.</p>
           <Button asChild><a href="/">Go to Psychology Hub</a></Button>
         </div>
+      </div>
+    );
+  }
+
+  if (phase === "VOLUNTARY_BREATHING") {
+    return (
+      <div className="max-w-xl mx-auto space-y-6 animate-in fade-in duration-300 py-8">
+        <div className="space-y-2 text-center">
+          <Wind className="h-10 w-10 text-primary mx-auto" />
+          <h2 className="text-2xl font-bold">Breathing Reset</h2>
+          <p className="text-muted-foreground">Proactive parasympathetic activation. Keep the amygdala quiet before the urge escalates.</p>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <DiaphragmaticBreathing cycles={2} onComplete={() => setPhase("LIVE")} />
+          </CardContent>
+        </Card>
+        <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={() => setPhase("LIVE")}>
+          Skip — return to monitor
+        </Button>
       </div>
     );
   }
@@ -473,7 +493,7 @@ export default function ActiveTradeMonitor() {
               size="lg"
               variant="outline"
               className="w-full h-12 border-primary/30 hover:border-primary hover:bg-primary/10"
-              onClick={() => { setInterferenceIntent(null); setPhase("AMYGDALA_ALERT"); }}
+              onClick={() => setPhase("VOLUNTARY_BREATHING")}
             >
               <Wind className="h-5 w-5 mr-2" /> Breathing Reset
             </Button>
