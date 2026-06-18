@@ -183,7 +183,7 @@ export default function Dashboard() {
     setEditingIntention(false);
   };
 
-  const highPatterns = patterns?.filter((p) => p.severity === "HIGH") ?? [];
+  const highPatterns = Array.isArray(patterns) ? patterns.filter((p) => p.severity === "HIGH") : [];
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
