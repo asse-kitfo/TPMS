@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ShieldAlert, Loader2, Crosshair, Target, AlertOctagon, Wind,
   CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Brain,
-  Zap, Activity, Eye, OctagonAlert
+  Zap, Activity, Eye, OctagonAlert, AlertTriangle
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
@@ -28,18 +28,21 @@ type Phase = "SETUP" | "LIVE" | "AMYGDALA_ALERT" | "VOLUNTARY_BREATHING" | "BRAI
 type InterferenceIntent = "CLOSE_EARLY" | "MOVE_SL" | "ADD_SIZE";
 type BreathPhase = "INHALE" | "HOLD" | "EXHALE";
 
-const INTERFERENCE_LABELS: Record<InterferenceIntent, { label: string; trigger: string }> = {
+const INTERFERENCE_LABELS: Record<InterferenceIntent, { label: string; trigger: string; type: string }> = {
   CLOSE_EARLY: {
     label: "Close early",
     trigger: "Fear of losing a profit is the survival brain protecting its 'kill'. This is primal, not rational.",
+    type: "CLOSED_EARLY",
   },
   MOVE_SL: {
     label: "Move your stop loss",
     trigger: "Moving a stop is the brain refusing to accept a small loss — it perceives capital loss as a threat to life.",
+    type: "MOVED_SL",
   },
   ADD_SIZE: {
     label: "Add to the position",
     trigger: "Adding size under emotional pressure is the overconfidence archetype hijacking risk management.",
+    type: "OVERSIZE",
   },
 };
 
@@ -52,6 +55,8 @@ const MANTRAS = [
   "An edge does not guarantee a win. It only requires execution.",
   "I do not manage trades. I manage risk.",
   "Calm is the goal, not safety. I can be calm in uncertainty.",
+  "One trade means nothing. The series means everything.",
+  "I placed the stop with my thinking brain. I will not move it with my emotional brain.",
 ];
 
 const BRAIN_SCIENCE = [
@@ -61,6 +66,8 @@ const BRAIN_SCIENCE = [
   "The 'low road' fires in nanoseconds — your thinking brain is always slower.",
   "Fear cannot be sustained in a relaxed, diaphragmatically-breathing body.",
   "Discipline is a neural circuit. Repetition builds the insulation that makes it automatic.",
+  "Every time you override an impulse, you strengthen the cortex's control.",
+  "The market does not care about your P&L. Only you do.",
 ];
 
 const tradeSchema = z.object({
@@ -72,7 +79,18 @@ const tradeSchema = z.object({
   takeProfit: z.coerce.number().positive("Must be positive"),
 });
 
+const debriefSchema = z.object({
+  outcome: z.enum(["WIN", "LOSS", "BREAKEVEN"]),
+  followedPlan: z.boolean(),
+  interfered: z.boolean(),
+  interferenceType: z.enum(["CLOSED_EARLY", "MOVED_SL", "REVENGE", "OVERSIZE"]).optional(),
+  emotionalState: z.enum(["CALM", "FEARFUL", "FRUSTRATED", "OVERCONFIDENT", "NEUTRAL", "ANXIOUS"]),
+  lesson: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 type TradeDetails = z.infer<typeof tradeSchema> & { id: number };
+type DebriefValues = z.infer<typeof debriefSchema>;
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -83,11 +101,15 @@ function formatDuration(seconds: number): string {
   return `${s}s`;
 }
 
-function calcRR(direction: string, entry: number, sl: number, tp: number): string {
+function calcRR(direction: string, entry: number, sl: number, tp: number): { ratio: string; riskPips: number; rewardPips: number } {
   const risk = Math.abs(entry - sl);
   const reward = Math.abs(tp - entry);
-  if (risk === 0) return "—";
-  return `1:${(reward / risk).toFixed(1)}`;
+  if (risk === 0) return { ratio: "—", riskPips: 0, rewardPips: 0 };
+  return {
+    ratio: `1:${(reward / risk).toFixed(1)}`,
+    riskPips: Number(risk.toFixed(5)),
+    rewardPips: Number(reward.toFixed(5)),
+  };
 }
 
 function DiaphragmaticBreathing({ cycles, onComplete }: { cycles: number; onComplete: () => void }) {
@@ -130,7 +152,7 @@ function DiaphragmaticBreathing({ cycles, onComplete }: { cycles: number; onComp
     return (
       <div className="flex flex-col items-center gap-6 py-4">
         <div className="h-32 w-32 rounded-full border-4 border-green-500 flex items-center justify-center">
-          <ShieldAlert className="h-10 w-10 text-green-500" />
+          <CheckCircle2 className="h-10 w-10 text-green-500" />
         </div>
         <p className="text-center font-semibold">Parasympathetic activated.<br /><span className="text-muted-foreground font-normal text-sm">Fear cannot sustain itself in a relaxed body.</span></p>
         <Button onClick={onComplete} className="px-12">Thinking Brain Check →</Button>
@@ -156,6 +178,193 @@ function DiaphragmaticBreathing({ cycles, onComplete }: { cycles: number; onComp
   );
 }
 
+function DebriefPhase({ trade, elapsed, onSubmit, isPending }: {
+  trade: TradeDetails;
+  elapsed: number;
+  onSubmit: (values: DebriefValues) => void;
+  isPending: boolean;
+}) {
+  const [outcome, setOutcome] = useState<"WIN" | "LOSS" | "BREAKEVEN" | null>(null);
+  const [followedPlan, setFollowedPlan] = useState<boolean | null>(null);
+  const [interfered, setInterfered] = useState<boolean | null>(null);
+  const [interferenceType, setInterferenceType] = useState<string | null>(null);
+  const [emotionalState, setEmotionalState] = useState<string | null>(null);
+  const [lesson, setLesson] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const rr = calcRR(trade.direction, trade.entryPrice, trade.stopLoss, trade.takeProfit);
+
+  const canSubmit = outcome !== null && followedPlan !== null && interfered !== null &&
+    (!interfered || interferenceType !== null) && emotionalState !== null;
+
+  const handleSubmit = () => {
+    if (!outcome || followedPlan === null || interfered === null || !emotionalState) return;
+    onSubmit({
+      outcome,
+      followedPlan,
+      interfered,
+      interferenceType: interferenceType as DebriefValues["interferenceType"] ?? undefined,
+      emotionalState: emotionalState as DebriefValues["emotionalState"],
+      lesson: lesson || undefined,
+      notes: lesson ? `[Lesson] ${lesson}${notes ? ` | ${notes}` : ""}` : notes || undefined,
+    });
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 py-4">
+      <div>
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <Brain className="h-6 w-6 text-primary" /> Trade Debrief
+        </h2>
+        <p className="text-muted-foreground mt-1">Psychological post-trade analysis. Be honest — this data trains your cortex.</p>
+      </div>
+
+      <div className="p-4 rounded-xl border border-border/50 bg-card/50">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="font-mono font-black text-xl">{trade.pair.toUpperCase()}</span>
+          <Badge className={trade.direction === "LONG" ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-destructive/20 text-red-400 border-destructive/30"}>
+            {trade.direction === "LONG" ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+            {trade.direction}
+          </Badge>
+          <Badge variant="outline" className="font-mono text-xs">R:R {rr.ratio}</Badge>
+          <div className="ml-auto flex items-center gap-1.5 text-muted-foreground text-sm font-mono">
+            <Clock className="h-3.5 w-3.5" />
+            {formatDuration(elapsed)}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-5">
+        <div>
+          <p className="text-sm font-semibold mb-3 uppercase tracking-widest text-muted-foreground">1. Outcome</p>
+          <div className="grid grid-cols-3 gap-3">
+            {(["WIN", "LOSS", "BREAKEVEN"] as const).map((o) => (
+              <button key={o} type="button" onClick={() => setOutcome(o)}
+                className={`py-4 rounded-xl border-2 font-bold text-sm transition-all ${
+                  outcome === o
+                    ? o === "WIN" ? "border-green-500 bg-green-500/15 text-green-400"
+                    : o === "LOSS" ? "border-destructive bg-destructive/15 text-red-400"
+                    : "border-amber-500 bg-amber-500/15 text-amber-400"
+                    : "border-border text-muted-foreground hover:border-border/80"
+                }`}>
+                {o === "WIN" ? "✓ WIN" : o === "LOSS" ? "✗ LOSS" : "⊘ BREAKEVEN"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {outcome && (
+          <div className="animate-in fade-in duration-200">
+            <p className="text-sm font-semibold mb-3 uppercase tracking-widest text-muted-foreground">2. Did you follow your plan exactly?</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => setFollowedPlan(true)}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${followedPlan === true ? "border-green-500 bg-green-500/10" : "border-border hover:border-border/80"}`}>
+                <CheckCircle2 className={`h-5 w-5 mb-2 ${followedPlan === true ? "text-green-400" : "text-muted-foreground"}`} />
+                <p className="font-semibold text-sm">Yes — full execution</p>
+                <p className="text-xs text-muted-foreground mt-1">Entry, stop, and target as planned. No interference.</p>
+              </button>
+              <button type="button" onClick={() => setFollowedPlan(false)}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${followedPlan === false ? "border-destructive bg-destructive/10" : "border-border hover:border-border/80"}`}>
+                <XCircle className={`h-5 w-5 mb-2 ${followedPlan === false ? "text-red-400" : "text-muted-foreground"}`} />
+                <p className="font-semibold text-sm">No — I deviated</p>
+                <p className="text-xs text-muted-foreground mt-1">I changed something from the original plan.</p>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {followedPlan !== null && (
+          <div className="animate-in fade-in duration-200">
+            <p className="text-sm font-semibold mb-3 uppercase tracking-widest text-muted-foreground">3. Did you interfere with the trade after entry?</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => { setInterfered(false); setInterferenceType(null); }}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${interfered === false ? "border-green-500 bg-green-500/10" : "border-border hover:border-border/80"}`}>
+                <Activity className={`h-5 w-5 mb-2 ${interfered === false ? "text-green-400" : "text-muted-foreground"}`} />
+                <p className="font-semibold text-sm">No — left it alone</p>
+                <p className="text-xs text-muted-foreground mt-1">Did not touch it after entry.</p>
+              </button>
+              <button type="button" onClick={() => setInterfered(true)}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${interfered === true ? "border-amber-500 bg-amber-500/10" : "border-border hover:border-border/80"}`}>
+                <Zap className={`h-5 w-5 mb-2 ${interfered === true ? "text-amber-400" : "text-muted-foreground"}`} />
+                <p className="font-semibold text-sm">Yes — I interfered</p>
+                <p className="text-xs text-muted-foreground mt-1">Moved SL, closed early, or added size.</p>
+              </button>
+            </div>
+            {interfered === true && (
+              <div className="mt-3 space-y-2 animate-in fade-in duration-200">
+                <p className="text-xs text-muted-foreground uppercase tracking-widest">What type of interference?</p>
+                {["CLOSED_EARLY", "MOVED_SL", "REVENGE", "OVERSIZE"].map((type) => (
+                  <button key={type} type="button" onClick={() => setInterferenceType(type)}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg border text-sm transition-all ${
+                      interferenceType === type ? "border-amber-500/50 bg-amber-500/10 text-amber-400" : "border-border text-muted-foreground hover:border-border/80"
+                    }`}>
+                    {type === "CLOSED_EARLY" ? "Closed position early" : type === "MOVED_SL" ? "Moved stop loss" : type === "REVENGE" ? "Revenge trade" : "Oversized position"}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {interfered !== null && (!interfered || interferenceType) && (
+          <div className="animate-in fade-in duration-200">
+            <p className="text-sm font-semibold mb-3 uppercase tracking-widest text-muted-foreground">4. Emotional state at trade close</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {[
+                { val: "CALM", label: "Calm", color: "text-green-400", activeBorder: "border-green-500 bg-green-500/10" },
+                { val: "NEUTRAL", label: "Neutral", color: "text-muted-foreground", activeBorder: "border-primary bg-primary/10" },
+                { val: "ANXIOUS", label: "Anxious", color: "text-amber-400", activeBorder: "border-amber-500 bg-amber-500/10" },
+                { val: "FEARFUL", label: "Fearful", color: "text-orange-400", activeBorder: "border-orange-500 bg-orange-500/10" },
+                { val: "FRUSTRATED", label: "Frustrated", color: "text-red-400", activeBorder: "border-destructive bg-destructive/10" },
+                { val: "OVERCONFIDENT", label: "Overconfident", color: "text-purple-400", activeBorder: "border-purple-500 bg-purple-500/10" },
+              ].map(({ val, label, activeBorder }) => (
+                <button key={val} type="button" onClick={() => setEmotionalState(val)}
+                  className={`py-2.5 px-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                    emotionalState === val ? activeBorder : "border-border text-muted-foreground hover:border-border/80"
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {emotionalState && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div>
+              <p className="text-sm font-semibold mb-2 uppercase tracking-widest text-muted-foreground">5. Key Lesson (optional but powerful)</p>
+              <Textarea
+                value={lesson}
+                onChange={(e) => setLesson(e.target.value)}
+                placeholder="What does this trade teach you? What will you do differently or the same? Write one concrete, honest sentence."
+                className="resize-none text-sm font-mono"
+                rows={2}
+              />
+            </div>
+            {(followedPlan === false || interfered === true) && (
+              <div>
+                <p className="text-sm font-semibold mb-2 uppercase tracking-widest text-muted-foreground">What triggered the deviation?</p>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Name the specific emotion or thought that caused you to deviate. Naming it builds awareness."
+                  className="resize-none text-sm"
+                  rows={2}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <Button size="lg" className="w-full h-14 text-base font-bold" disabled={!canSubmit || isPending} onClick={handleSubmit}>
+        {isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
+        Submit Debrief & Close Trade
+      </Button>
+    </div>
+  );
+}
+
 export default function ActiveTradeMonitor() {
   const queryClient = useQueryClient();
   const { data: session, isLoading: isSessionLoading } = useGetCurrentSession();
@@ -166,7 +375,6 @@ export default function ActiveTradeMonitor() {
   const [mantraIndex] = useState(() => Math.floor(Math.random() * MANTRAS.length));
   const [scienceIndex, setScienceIndex] = useState(0);
   const [brainStateAnswer, setBrainStateAnswer] = useState<"THINKING" | "EMOTIONAL" | null>(null);
-  const [brainCheckNotes, setBrainCheckNotes] = useState("");
   const [circuitBreakerActive, setCircuitBreakerActive] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scienceRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -180,7 +388,6 @@ export default function ActiveTradeMonitor() {
     defaultValues: { pair: "", setupGrade: "A_PLUS", direction: "LONG", entryPrice: 0, stopLoss: 0, takeProfit: 0 },
   });
 
-  // Pre-fill from Trade Gate carry-through
   useEffect(() => {
     if (phase === "SETUP") {
       const stored = sessionStorage.getItem("pendingTrade");
@@ -216,7 +423,7 @@ export default function ActiveTradeMonitor() {
     createTrade.mutate(
       { data: { ...values, sessionId: session.id } },
       {
-        onSuccess: (data) => {
+        onSuccess: (data: { id: number }) => {
           setTradeDetails({ ...values, id: data.id });
           setElapsed(0);
           setPhase("LIVE");
@@ -231,11 +438,12 @@ export default function ActiveTradeMonitor() {
     setPhase("AMYGDALA_ALERT");
   };
 
-  const onCloseDebrief = (values: { outcome: "WIN" | "LOSS" | "BREAKEVEN"; followedPlan: boolean; notes: string }) => {
+  const onCloseDebrief = (values: DebriefValues) => {
     if (!tradeDetails) return;
     const maxLosses = parseInt(localStorage.getItem("maxLosses") || "2", 10);
     const currentLossCount = session?.lossCount ?? 0;
     const willHitLimit = values.outcome === "LOSS" && (currentLossCount + 1) >= maxLosses;
+    const isLoss = values.outcome === "LOSS";
 
     updateTrade.mutate(
       {
@@ -243,22 +451,26 @@ export default function ActiveTradeMonitor() {
         data: {
           outcome: values.outcome,
           followedPlan: values.followedPlan,
+          interfered: values.interfered,
+          interferenceType: values.interferenceType,
+          emotionalState: values.emotionalState,
           notes: values.notes,
           closedAt: new Date().toISOString(),
         },
       },
       {
         onSuccess: () => {
+          if (isLoss) {
+            const coolingMin = parseInt(localStorage.getItem("coolingOffMinutes") || "0", 10);
+            if (coolingMin > 0) localStorage.setItem("lastLossTimestamp", String(Date.now()));
+          }
           queryClient.invalidateQueries({ queryKey: getListTradesQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetCurrentSessionQueryKey() });
           setPhase("SETUP");
           setTradeDetails(null);
           setBrainStateAnswer(null);
-          setBrainCheckNotes("");
           form.reset();
-          if (willHitLimit) {
-            setCircuitBreakerActive(true);
-          }
+          if (willHitLimit) setCircuitBreakerActive(true);
         },
       }
     );
@@ -287,63 +499,36 @@ export default function ActiveTradeMonitor() {
     );
   }
 
-  // ── Circuit Breaker Screen ─────────────────────────────────────────
   if (circuitBreakerActive) {
     const maxLosses = parseInt(localStorage.getItem("maxLosses") || "2", 10);
     return (
       <div className="flex items-center justify-center min-h-[80vh] animate-in zoom-in-95 duration-500">
         <div className="text-center space-y-8 max-w-md w-full">
           <OctagonAlert className="h-24 w-24 text-destructive mx-auto animate-pulse" />
-
           <div className="space-y-3">
             <p className="text-xs text-destructive uppercase tracking-widest font-bold">Loss Limit Reached</p>
             <h1 className="text-4xl font-black uppercase tracking-tight text-destructive">Circuit Breaker</h1>
-            <p className="text-muted-foreground text-lg">
-              {maxLosses} {maxLosses === 1 ? "loss" : "losses"} recorded this session.
-            </p>
+            <p className="text-muted-foreground text-lg">{maxLosses} {maxLosses === 1 ? "loss" : "losses"} recorded this session.</p>
           </div>
-
           <div className="p-5 rounded-xl border-2 border-destructive/40 bg-destructive/5 text-left space-y-3">
             <p className="font-bold text-destructive text-sm">Your brain right now:</p>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              After {maxLosses} {maxLosses === 1 ? "loss" : "losses"}, your amygdala has activated the <strong className="text-foreground">threat response</strong>. Capital loss is processed by the same circuitry as physical danger. Your brain is in survival mode — it will push you toward revenge trading, oversizing, and impulsive entries to "recover" what it perceives as lost resources.
+              After {maxLosses} {maxLosses === 1 ? "loss" : "losses"}, your amygdala has activated the <strong className="text-foreground">threat response</strong>. Capital loss is processed by the same circuitry as physical danger. Your brain is in survival mode — pushing toward revenge trading, oversizing, and impulsive entries to "recover" what it perceives as lost resources.
             </p>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              <strong className="text-foreground">Every trade taken from this state is statistically negative.</strong> You set this limit when your cortex was in control. Honor that decision.
-            </p>
+            <p className="text-sm text-muted-foreground"><strong className="text-foreground">Every trade from this state is statistically negative.</strong> You set this limit when your cortex was in control. Honor it.</p>
           </div>
-
-          <div className="space-y-3">
-            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Immediate Protocol</p>
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              {["Close charts now", "Do not review trades", "Breathe & decompress"].map((step, i) => (
-                <div key={i} className="p-3 rounded-lg border border-border bg-card/50 text-center space-y-1">
-                  <p className="text-xl">{"🖥️📵🫁"[i]}</p>
-                  <p className="text-muted-foreground">{step}</p>
-                </div>
-              ))}
-            </div>
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            {[["Close charts", "🖥️"], ["No trade review", "📵"], ["Breathe & decompress", "🫁"]].map(([step, emoji]) => (
+              <div key={step} className="p-3 rounded-lg border border-border bg-card/50 text-center space-y-1">
+                <p className="text-xl">{emoji}</p>
+                <p className="text-muted-foreground">{step}</p>
+              </div>
+            ))}
           </div>
-
-          <div className="space-y-3">
-            <Button
-              size="lg"
-              variant="destructive"
-              className="w-full h-14 text-lg font-bold"
-              onClick={handleEndSessionCircuitBreaker}
-              disabled={updateSession.isPending}
-            >
-              {updateSession.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : "End Session & Stand Down"}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full text-muted-foreground"
-              asChild
-            >
-              <a href="/">Return to Psychology Hub</a>
-            </Button>
-          </div>
+          <Button size="lg" variant="destructive" className="w-full h-14 text-lg font-bold"
+            onClick={handleEndSessionCircuitBreaker} disabled={updateSession.isPending}>
+            {updateSession.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : "End Session & Stand Down"}
+          </Button>
         </div>
       </div>
     );
@@ -387,14 +572,14 @@ export default function ActiveTradeMonitor() {
           </div>
           <div className="pt-2 border-t border-destructive/20">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              This response travels from your thalamus directly to your amygdala in <strong className="text-foreground">nanoseconds</strong>, bypassing your thinking brain entirely. You cannot outthink it. You must regulate it through your body first.
+              This response travels from your thalamus directly to your amygdala in <strong className="text-foreground">nanoseconds</strong>, bypassing your thinking brain. You cannot outthink it. Regulate it through your body first.
             </p>
           </div>
         </div>
         <Card>
           <CardContent className="p-6">
-            <p className="text-center font-semibold mb-2">Diaphragmatic Breathing Reset</p>
-            <p className="text-center text-sm text-muted-foreground mb-6">Belly breathing activates the vagus nerve and directly signals the brain to stand down from fight-or-flight. 2 cycles required.</p>
+            <p className="text-center font-semibold mb-2">Diaphragmatic Reset — 2 cycles</p>
+            <p className="text-center text-sm text-muted-foreground mb-6">Belly breathing activates the vagus nerve and signals the brain to stand down from fight-or-flight.</p>
             <DiaphragmaticBreathing cycles={2} onComplete={() => setPhase("BRAIN_STATE_CHECK")} />
           </CardContent>
         </Card>
@@ -413,20 +598,14 @@ export default function ActiveTradeMonitor() {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <button
-            type="button"
-            onClick={() => setBrainStateAnswer("THINKING")}
-            className={`p-5 rounded-xl border-2 text-left space-y-2 transition-all ${brainStateAnswer === "THINKING" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}
-          >
+          <button type="button" onClick={() => setBrainStateAnswer("THINKING")}
+            className={`p-5 rounded-xl border-2 text-left space-y-2 transition-all ${brainStateAnswer === "THINKING" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}>
             <Eye className="h-6 w-6 text-primary" />
             <p className="font-bold">Thinking Brain</p>
             <p className="text-xs text-muted-foreground">I am calm and objective. I can see this trade without needing a specific outcome.</p>
           </button>
-          <button
-            type="button"
-            onClick={() => setBrainStateAnswer("EMOTIONAL")}
-            className={`p-5 rounded-xl border-2 text-left space-y-2 transition-all ${brainStateAnswer === "EMOTIONAL" ? "border-destructive bg-destructive/10" : "border-border hover:border-destructive/50"}`}
-          >
+          <button type="button" onClick={() => setBrainStateAnswer("EMOTIONAL")}
+            className={`p-5 rounded-xl border-2 text-left space-y-2 transition-all ${brainStateAnswer === "EMOTIONAL" ? "border-destructive bg-destructive/10" : "border-border hover:border-destructive/50"}`}>
             <Zap className="h-6 w-6 text-destructive" />
             <p className="font-bold">Emotional Brain</p>
             <p className="text-xs text-muted-foreground">I still feel the urge strongly. My body is still activated. I need more time.</p>
@@ -435,7 +614,7 @@ export default function ActiveTradeMonitor() {
 
         {brainStateAnswer === "EMOTIONAL" && (
           <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 animate-in fade-in">
-            <p className="text-sm font-semibold text-amber-400">Repeat the breathing. Then return to this check.</p>
+            <p className="text-sm font-semibold text-amber-400">Repeat the breathing. Then return.</p>
             <p className="text-sm text-muted-foreground mt-1">The emotional brain is still dominant. Acting now would mean the survival brain is managing your trade, not your methodology.</p>
             <Button variant="outline" className="mt-3 w-full" onClick={() => setPhase("AMYGDALA_ALERT")}>
               <Wind className="h-4 w-4 mr-2" /> Breathe Again
@@ -448,19 +627,11 @@ export default function ActiveTradeMonitor() {
             <p className="text-sm font-semibold text-green-400">Cortex re-engaged. Now decide with clarity.</p>
             <p className="text-sm text-muted-foreground">You now have access to your probability-based mind. The interference urge was biological, not rational.</p>
             <div className="flex gap-3 pt-1">
-              <Button
-                className="flex-1 bg-green-500/20 text-green-400 border border-green-500/40 hover:bg-green-500/30"
-                variant="outline"
-                onClick={() => setPhase("LIVE")}
-              >
+              <Button className="flex-1 bg-green-500/20 text-green-400 border border-green-500/40 hover:bg-green-500/30" variant="outline" onClick={() => setPhase("LIVE")}>
                 ✓ Stay in trade — let it run
               </Button>
-              <Button
-                variant="destructive"
-                className="flex-1"
-                onClick={() => setPhase("DEBRIEF")}
-              >
-                Close trade — still want to exit
+              <Button variant="destructive" className="flex-1" onClick={() => setPhase("DEBRIEF")}>
+                Close trade
               </Button>
             </div>
           </div>
@@ -491,30 +662,26 @@ export default function ActiveTradeMonitor() {
               <Target className="h-5 w-5 text-primary" />
               <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
             </div>
-            <Badge variant="outline" className="text-primary border-primary/40 bg-primary/10 font-mono px-3 py-1 tracking-widest text-xs">
-              LIVE TRADE
-            </Badge>
+            <Badge variant="outline" className="text-primary border-primary/40 bg-primary/10 font-mono px-3 py-1 tracking-widest text-xs">LIVE TRADE</Badge>
             <div className="flex items-center gap-2 text-muted-foreground font-mono">
               <Clock className="h-4 w-4" />
               <span className="text-lg font-bold text-foreground">{formatDuration(elapsed)}</span>
             </div>
           </div>
-          <Button variant="outline" size="sm" className="text-muted-foreground" onClick={() => setPhase("DEBRIEF")}>
-            Close Trade
-          </Button>
+          <Button variant="outline" size="sm" className="text-muted-foreground" onClick={() => setPhase("DEBRIEF")}>Close Trade</Button>
         </div>
 
         <div className="grid md:grid-cols-2 gap-5 flex-1">
           <div className="space-y-4">
             <div className="p-5 rounded-xl border border-border bg-card/50">
               <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Locked Trade</p>
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-3 mb-4 flex-wrap">
                 <span className="text-2xl font-black font-mono">{tradeDetails.pair.toUpperCase()}</span>
                 <Badge className={tradeDetails.direction === "LONG" ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-destructive/20 text-red-400 border-destructive/30"}>
                   {tradeDetails.direction === "LONG" ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
                   {tradeDetails.direction}
                 </Badge>
-                <Badge variant="outline" className="font-mono text-xs">R:R {rr}</Badge>
+                <Badge variant="outline" className="font-mono text-xs font-bold">R:R {rr.ratio}</Badge>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="p-2 rounded-lg bg-secondary/30">
@@ -546,12 +713,8 @@ export default function ActiveTradeMonitor() {
               <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Feeling the urge to interfere?</p>
               <div className="space-y-2">
                 {(["CLOSE_EARLY", "MOVE_SL", "ADD_SIZE"] as InterferenceIntent[]).map((intent) => (
-                  <Button
-                    key={intent}
-                    variant="outline"
-                    className="w-full justify-start h-10 text-sm text-destructive border-destructive/20 hover:bg-destructive/10"
-                    onClick={() => triggerInterference(intent)}
-                  >
+                  <Button key={intent} variant="outline" className="w-full justify-start h-10 text-sm text-destructive border-destructive/20 hover:bg-destructive/10"
+                    onClick={() => triggerInterference(intent)}>
                     <Zap className="h-4 w-4 mr-2 flex-shrink-0" />
                     I want to {INTERFERENCE_LABELS[intent].label}
                   </Button>
@@ -596,12 +759,8 @@ export default function ActiveTradeMonitor() {
               </div>
             </div>
 
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full h-12 border-primary/30 hover:border-primary hover:bg-primary/10"
-              onClick={() => setPhase("VOLUNTARY_BREATHING")}
-            >
+            <Button size="lg" variant="outline" className="w-full h-12 border-primary/30 hover:border-primary hover:bg-primary/10"
+              onClick={() => setPhase("VOLUNTARY_BREATHING")}>
               <Wind className="h-5 w-5 mr-2" /> Breathing Reset
             </Button>
           </div>
@@ -680,110 +839,28 @@ export default function ActiveTradeMonitor() {
                 )} />
                 <FormField control={form.control} name="stopLoss" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-red-400">Stop Loss</FormLabel>
-                    <FormControl><Input type="number" step="any" className="font-mono bg-destructive/10 border-destructive/30" {...field} /></FormControl>
+                    <FormLabel>Stop Loss</FormLabel>
+                    <FormControl><Input type="number" step="any" className="font-mono bg-destructive/10 border-destructive/20" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="takeProfit" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-green-400">Take Profit</FormLabel>
-                    <FormControl><Input type="number" step="any" className="font-mono bg-green-500/10 border-green-500/30" {...field} /></FormControl>
+                    <FormLabel>Take Profit</FormLabel>
+                    <FormControl><Input type="number" step="any" className="font-mono bg-green-500/10 border-green-500/20" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
               </div>
 
-              <Button type="submit" size="lg" className="w-full h-14 text-lg font-bold tracking-wider" disabled={createTrade.isPending}>
-                {createTrade.isPending ? <Loader2 className="h-6 w-6 animate-spin" /> : "LOCK IN & ENTER MONITOR"}
+              <Button type="submit" size="lg" className="w-full h-14 text-lg font-bold" disabled={createTrade.isPending}>
+                {createTrade.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Target className="h-5 w-5 mr-2" />}
+                Lock in Trade Plan
               </Button>
             </form>
           </Form>
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function DebriefPhase({
-  trade,
-  elapsed,
-  onSubmit,
-  isPending,
-}: {
-  trade: TradeDetails;
-  elapsed: number;
-  onSubmit: (v: { outcome: "WIN" | "LOSS" | "BREAKEVEN"; followedPlan: boolean; notes: string }) => void;
-  isPending: boolean;
-}) {
-  const [outcome, setOutcome] = useState<"WIN" | "LOSS" | "BREAKEVEN" | null>(null);
-  const [followedPlan, setFollowedPlan] = useState<boolean | null>(null);
-  const [notes, setNotes] = useState("");
-
-  const canSubmit = outcome !== null && followedPlan !== null;
-
-  return (
-    <div className="max-w-xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 py-8">
-      <div>
-        <h1 className="text-3xl font-bold">Post-Trade Debrief</h1>
-        <p className="text-muted-foreground mt-1">
-          {trade.pair.toUpperCase()} · {formatDuration(elapsed)} · {trade.direction}
-        </p>
-      </div>
-
-      <div className="space-y-6">
-        <div className="space-y-3">
-          <p className="font-semibold">1. Outcome?</p>
-          <div className="grid grid-cols-3 gap-3">
-            {(["WIN", "LOSS", "BREAKEVEN"] as const).map((o) => {
-              const styles = o === "WIN" ? "text-green-400 border-green-500/40 bg-green-500/10" : o === "LOSS" ? "text-red-400 border-destructive/40 bg-destructive/10" : "text-amber-400 border-amber-500/40 bg-amber-500/10";
-              return (
-                <button key={o} type="button" onClick={() => setOutcome(o)}
-                  className={`p-4 rounded-xl border-2 font-bold text-lg transition-all ${outcome === o ? styles + " scale-105" : "border-border bg-card/50 text-muted-foreground hover:border-border/80"}`}>
-                  {o}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <p className="font-semibold">2. Did you execute without emotional interference?</p>
-          <div className="grid grid-cols-2 gap-3">
-            <button type="button" onClick={() => setFollowedPlan(true)}
-              className={`p-4 rounded-xl border-2 font-bold flex items-center justify-center gap-2 transition-all ${followedPlan === true ? "border-green-500/40 bg-green-500/10 text-green-400 scale-105" : "border-border bg-card/50 text-muted-foreground hover:border-border/80"}`}>
-              <CheckCircle2 className="h-5 w-5" /> Yes — Ruler held
-            </button>
-            <button type="button" onClick={() => setFollowedPlan(false)}
-              className={`p-4 rounded-xl border-2 font-bold flex items-center justify-center gap-2 transition-all ${followedPlan === false ? "border-destructive/40 bg-destructive/10 text-red-400 scale-105" : "border-border bg-card/50 text-muted-foreground hover:border-border/80"}`}>
-              <XCircle className="h-5 w-5" /> No — Caveman took over
-            </button>
-          </div>
-        </div>
-
-        {followedPlan === false && (
-          <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 animate-in fade-in">
-            <p className="text-sm font-semibold text-amber-400">Important — this is data, not failure</p>
-            <p className="text-sm text-muted-foreground mt-1">Interference is your survival brain operating normally. The goal is to identify the trigger so you can intercept it earlier next time. What happened?</p>
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <p className="font-semibold">3. What did your internal emotional state do? <span className="text-muted-foreground font-normal text-sm">(optional)</span></p>
-          <p className="text-xs text-muted-foreground">Name the emotion, the physical sensation, and the thought. This builds self-awareness over many trades.</p>
-          <Textarea
-            placeholder="e.g. Felt chest tightness at -15 pips. Brain said 'it won't recover.' Held anyway — it did. / Urge to close at +20 pips overwhelmed me. Closed early. Hit +60."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="resize-none h-24 font-mono text-sm"
-          />
-        </div>
-      </div>
-
-      <Button size="lg" className="w-full h-14 text-lg font-bold" disabled={!canSubmit || isPending}
-        onClick={() => outcome && followedPlan !== null && onSubmit({ outcome, followedPlan, notes })}>
-        {isPending ? <Loader2 className="h-6 w-6 animate-spin" /> : "Complete Debrief"}
-      </Button>
     </div>
   );
 }

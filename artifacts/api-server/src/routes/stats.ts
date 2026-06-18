@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, tradesTable, checksTable, sessionsTable } from "@workspace/db";
-import { eq, count, avg } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 
 const router = Router();
 
@@ -53,7 +53,6 @@ router.get("/patterns", async (_req, res) => {
     insight: string;
   }> = [];
 
-  // Check for non-A+ trades taken
   const weakSetupTrades = trades.filter((t) => t.setupGrade !== "A_PLUS");
   if (weakSetupTrades.length > 0) {
     patterns.push({
@@ -65,7 +64,6 @@ router.get("/patterns", async (_req, res) => {
     });
   }
 
-  // Interference (SL moving, early close, etc.)
   const interferenceTrades = trades.filter((t) => t.interfered === true);
   if (interferenceTrades.length > 0) {
     patterns.push({
@@ -77,7 +75,6 @@ router.get("/patterns", async (_req, res) => {
     });
   }
 
-  // Revenge trading (REVENGE interference type)
   const revengeTrades = trades.filter((t) => t.interferenceType === "REVENGE");
   if (revengeTrades.length > 0) {
     patterns.push({
@@ -89,7 +86,6 @@ router.get("/patterns", async (_req, res) => {
     });
   }
 
-  // Emotional state issues (high urge checks)
   const highUrgeChecks = checks.filter((c) => c.urgeLevel >= 7);
   if (highUrgeChecks.length > 0) {
     patterns.push({
@@ -101,7 +97,6 @@ router.get("/patterns", async (_req, res) => {
     });
   }
 
-  // Check if many trades logged per session (overtrading)
   const sessionTradeCounts: Record<number, number> = {};
   for (const t of trades) {
     sessionTradeCounts[t.sessionId] = (sessionTradeCounts[t.sessionId] ?? 0) + 1;
@@ -117,7 +112,6 @@ router.get("/patterns", async (_req, res) => {
     });
   }
 
-  // Impulse trade detection (trades taken after hard block checks)
   const hardBlockSessions = new Set(checks.filter((c) => c.verdict === "HARD_BLOCK").map((c) => c.sessionId));
   const tradesAfterBlock = trades.filter((t) => hardBlockSessions.has(t.sessionId));
   if (tradesAfterBlock.length > 0) {
@@ -181,6 +175,48 @@ router.get("/discipline-streak", async (_req, res) => {
     totalFollowed,
     totalTrades: tradesWithPlan.length,
   });
+});
+
+router.get("/emotion-breakdown", async (_req, res) => {
+  const trades = await db.select().from(tradesTable).orderBy(desc(tradesTable.createdAt));
+  const checks = await db.select().from(checksTable).orderBy(desc(checksTable.createdAt));
+
+  const psychStates = ["CALM", "FOCUSED", "URGE", "PRESSURE", "FEAR", "OVERCONFIDENT"] as const;
+
+  const checksBySession: Record<number, typeof checks[number][]> = {};
+  for (const c of checks) {
+    if (!checksBySession[c.sessionId]) checksBySession[c.sessionId] = [];
+    checksBySession[c.sessionId].push(c);
+  }
+
+  const result = psychStates.map((state) => {
+    const stateChecks = checks.filter((c) => c.psychState === state);
+    const sessionIds = new Set(stateChecks.map((c) => c.sessionId));
+    const stateTrades = trades.filter((t) => sessionIds.has(t.sessionId) && t.outcome !== null);
+
+    const wins = stateTrades.filter((t) => t.outcome === "WIN").length;
+    const winRate = stateTrades.length > 0 ? Math.round((wins / stateTrades.length) * 100) : 0;
+    const interference = stateTrades.filter((t) => t.interfered === true).length;
+    const interferenceRate = stateTrades.length > 0 ? Math.round((interference / stateTrades.length) * 100) : 0;
+
+    return {
+      state,
+      label: state === "A_PLUS" ? "A+" : state.charAt(0) + state.slice(1).toLowerCase(),
+      checkCount: stateChecks.length,
+      tradeCount: stateTrades.length,
+      winRate,
+      interferenceRate,
+    };
+  }).filter((r) => r.checkCount > 0);
+
+  const interferenceTypes = ["CLOSED_EARLY", "MOVED_SL", "REVENGE", "OVERSIZE"] as const;
+  const interferenceBreakdown = interferenceTypes.map((type) => ({
+    type,
+    label: type === "CLOSED_EARLY" ? "Closed Early" : type === "MOVED_SL" ? "Moved Stop" : type === "REVENGE" ? "Revenge" : "Oversize",
+    count: trades.filter((t) => t.interferenceType === type).length,
+  })).filter((r) => r.count > 0);
+
+  return res.json({ byState: result, interferenceBreakdown });
 });
 
 export default router;
