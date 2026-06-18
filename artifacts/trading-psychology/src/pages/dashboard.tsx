@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Brain, Shield, Flame, AlertTriangle, Play, Square,
   ArrowRight, CheckSquare2, Crosshair, Wind, Zap, Crown,
-  Sword, Heart, Eye
+  Sword, Heart, Eye, ShieldAlert, OctagonAlert
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -154,7 +154,21 @@ export default function Dashboard() {
   const [editingIntention, setEditingIntention] = useState(false);
   const [archetypeExpanded, setArchetypeExpanded] = useState<number | null>(null);
 
+  // Session config state
+  const [showSessionConfig, setShowSessionConfig] = useState(false);
+  const [maxLossesConfig, setMaxLossesConfig] = useState(2);
+  const [showKillConfirm, setShowKillConfirm] = useState(false);
+
+  // Read maxLosses for current session display
+  const [maxLossesFromStorage, setMaxLossesFromStorage] = useState(2);
+  useEffect(() => {
+    const stored = parseInt(localStorage.getItem("maxLosses") || "2", 10);
+    setMaxLossesFromStorage(stored);
+  }, [session?.id]);
+
   const activeSession = session && !session.endedAt;
+  const currentLossCount = session?.lossCount ?? 0;
+  const lossLimitHit = activeSession && currentLossCount >= maxLossesFromStorage;
 
   const readinessScore = stats
     ? getReadiness(stats.planFollowRate ?? 0, stats.interferenceRate ?? 0, streak?.currentStreak ?? 0)
@@ -164,7 +178,14 @@ export default function Dashboard() {
     ? READINESS_LEVELS.find((r) => readinessScore >= r.min)!
     : null;
 
-  const handleStart = () => {
+  const handleStartSession = () => {
+    setShowSessionConfig(true);
+  };
+
+  const handleStartConfirm = () => {
+    localStorage.setItem("maxLosses", String(maxLossesConfig));
+    setMaxLossesFromStorage(maxLossesConfig);
+    setShowSessionConfig(false);
     startSession.mutate({ data: {} }, {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetCurrentSessionQueryKey() }),
     });
@@ -176,6 +197,15 @@ export default function Dashboard() {
       { id: session.id, data: { endedAt: new Date().toISOString() } },
       { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetCurrentSessionQueryKey() }) }
     );
+    setShowKillConfirm(false);
+  };
+
+  const handleKillSwitch = () => {
+    if (showKillConfirm) {
+      handleEnd();
+    } else {
+      setShowKillConfirm(true);
+    }
   };
 
   const saveIntention = () => {
@@ -187,6 +217,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+      {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
@@ -194,22 +226,146 @@ export default function Dashboard() {
           </h1>
           <p className="text-muted-foreground mt-1">Reprogram the brain. Trade from the cortex, not the amygdala.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           {activeSession ? (
             <>
-              <Badge variant="outline" className="px-3 py-1 font-mono text-sm bg-primary/10 text-primary border-primary/20">SESSION ACTIVE</Badge>
-              <Button variant="destructive" size="sm" onClick={handleEnd} disabled={updateSession.isPending}>
-                <Square className="h-4 w-4 mr-2" /> End Session
-              </Button>
+              <Badge variant="outline" className="px-3 py-1 font-mono text-sm bg-primary/10 text-primary border-primary/20">
+                SESSION ACTIVE
+              </Badge>
+              {showKillConfirm ? (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => setShowKillConfirm(false)}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={handleEnd} disabled={updateSession.isPending}
+                    className="animate-pulse">
+                    <OctagonAlert className="h-4 w-4 mr-1" /> Confirm Kill Switch
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button size="sm" variant="outline" className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive"
+                    onClick={handleKillSwitch}>
+                    <ShieldAlert className="h-4 w-4 mr-1" /> Kill Switch
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleEnd} disabled={updateSession.isPending}>
+                    <Square className="h-4 w-4 mr-2" /> End Session
+                  </Button>
+                </>
+              )}
             </>
           ) : (
-            <Button size="sm" onClick={handleStart} disabled={startSession.isPending}>
+            <Button size="sm" onClick={handleStartSession} disabled={startSession.isPending || showSessionConfig}>
               <Play className="h-4 w-4 mr-2" /> Start Session
             </Button>
           )}
         </div>
       </div>
 
+      {/* ── Session Config Panel ─────────────────────────────────────── */}
+      {!activeSession && showSessionConfig && (
+        <div className="p-5 rounded-xl border-2 border-primary/30 bg-primary/5 space-y-5 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div>
+            <p className="font-bold text-lg">Configure Today's Session</p>
+            <p className="text-sm text-muted-foreground mt-1">Set your circuit breaker before the market opens — when your brain is calm and rational, not when it's in survival mode.</p>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-semibold mb-1">Max losses before automatic circuit breaker</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                When this limit is reached, the system locks you out. Your cortex is setting the rule now so your amygdala can't override it mid-session.
+              </p>
+              <div className="flex gap-3">
+                {[1, 2, 3].map(n => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setMaxLossesConfig(n)}
+                    className={`flex-1 py-3 rounded-lg border-2 font-mono font-black text-2xl transition-all ${
+                      maxLossesConfig === n
+                        ? "border-primary bg-primary/20 text-primary"
+                        : "border-border text-muted-foreground hover:border-primary/50"
+                    }`}
+                  >
+                    {n}
+                    <p className="text-xs font-sans font-normal mt-1">
+                      {n === 1 ? "Iron rule" : n === 2 ? "Strict" : "Standard"}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-lg bg-secondary/50 border border-border/50 text-xs text-muted-foreground">
+              <strong className="text-foreground">Rule:</strong> After {maxLossesConfig} {maxLossesConfig === 1 ? "loss" : "losses"}, the system triggers a full circuit breaker. You are done trading for the day. No exceptions — that is the purpose of setting this <em>before</em> you start.
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" size="sm" onClick={() => setShowSessionConfig(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" className="flex-1" onClick={handleStartConfirm} disabled={startSession.isPending}>
+              <Play className="h-4 w-4 mr-2" /> Begin Session with {maxLossesConfig}-Loss Limit
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Loss Circuit Breaker Banner ───────────────────────────────── */}
+      {activeSession && (
+        <div className={`p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
+          lossLimitHit
+            ? "border-destructive bg-destructive/10 animate-pulse"
+            : currentLossCount > 0
+            ? "border-amber-500/50 bg-amber-500/5"
+            : "border-border/50 bg-card/30"
+        }`}>
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest">Session Loss Counter</p>
+              {lossLimitHit && (
+                <Badge variant="destructive" className="text-xs animate-pulse">CIRCUIT BREAKER ACTIVE</Badge>
+              )}
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className={`text-4xl font-mono font-black ${
+                lossLimitHit ? "text-destructive" : currentLossCount > 0 ? "text-amber-400" : "text-green-400"
+              }`}>
+                {currentLossCount}
+              </span>
+              <span className="text-muted-foreground font-mono text-lg">/ {maxLossesFromStorage}</span>
+              <span className="text-muted-foreground text-sm ml-1">
+                {lossLimitHit
+                  ? "— You must stop trading immediately"
+                  : currentLossCount === 0
+                  ? "— Clean session"
+                  : `— ${maxLossesFromStorage - currentLossCount} remaining before circuit breaker`
+                }
+              </span>
+            </div>
+            <div className="mt-2 h-2 bg-secondary rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${
+                  lossLimitHit ? "bg-destructive" : currentLossCount > 0 ? "bg-amber-400" : "bg-green-400"
+                }`}
+                style={{ width: `${Math.min(100, (currentLossCount / maxLossesFromStorage) * 100)}%` }}
+              />
+            </div>
+          </div>
+          {lossLimitHit && (
+            <div className="text-center flex-shrink-0">
+              <p className="text-xs text-destructive font-bold mb-2">Your cortex set this rule.<br />Honor it.</p>
+              <Button size="sm" variant="destructive" onClick={handleEnd} disabled={updateSession.isPending}>
+                End Session Now
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Stats Grid ───────────────────────────────────────────────── */}
       <div className="grid md:grid-cols-3 gap-4">
         {readinessLevel && readinessScore !== null && (
           <Card className={`border-2 ${readinessLevel.border} ${readinessLevel.bg}`}>
@@ -279,6 +435,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* ── High-Severity Pattern Alert ──────────────────────────────── */}
       {highPatterns.length > 0 && (
         <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5 flex gap-3 items-start">
           <Zap className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
@@ -292,6 +449,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ── Quick Links ──────────────────────────────────────────────── */}
       <div className="grid md:grid-cols-2 gap-4">
         <Link href="/check">
           <Card className="cursor-pointer border-primary/20 hover:border-primary/50 hover:bg-primary/5 transition-all group h-full">
@@ -338,6 +496,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
+      {/* ── Self-Mastery + Daily Practice ────────────────────────────── */}
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-3">

@@ -15,9 +15,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import {
   AlertTriangle, ShieldCheck, ShieldAlert, Ban, Loader2, Wind,
-  Brain, Zap, Activity, Eye
+  Brain, Zap, Activity, Eye, Crosshair, OctagonAlert
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 
 type Phase = "BODY_SCAN" | "AMYGDALA_RESET" | "MAIN_CHECK" | "VERDICT";
 type CheckResultVerdict = "TRADE" | "REDUCE_RISK" | "NO_TRADE" | "HARD_BLOCK";
@@ -150,10 +151,12 @@ function BreathingReset({ onComplete }: { onComplete: () => void }) {
 
 export default function TradeGate() {
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const { data: session, isLoading: isSessionLoading } = useGetCurrentSession();
   const [phase, setPhase] = useState<Phase>("BODY_SCAN");
   const [bodyScan, setBodyScan] = useState<Record<string, boolean>>({});
   const [verdict, setVerdict] = useState<{ status: CheckResultVerdict; reason: string | null } | null>(null);
+  const [submittedData, setSubmittedData] = useState<{ pair: string; setupGrade: string } | null>(null);
 
   const submitCheck = useSubmitCheck();
 
@@ -169,8 +172,12 @@ export default function TradeGate() {
     },
   });
 
+  const maxLosses = parseInt(localStorage.getItem("maxLosses") || "2", 10);
+  const lossLimitHit = session && !session.endedAt && (session.lossCount ?? 0) >= maxLosses;
+
   const onSubmit = (values: z.infer<typeof checkSchema>) => {
     if (!session) return;
+    setSubmittedData({ pair: values.pair, setupGrade: values.setupGrade });
     submitCheck.mutate(
       { data: { ...values, sessionId: session.id } },
       {
@@ -206,6 +213,32 @@ export default function TradeGate() {
           <h2 className="text-2xl font-bold">No Active Session</h2>
           <p className="text-muted-foreground">Start a session from the Psychology Hub first.</p>
           <Button asChild><a href="/">Go to Psychology Hub</a></Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (lossLimitHit) {
+    return (
+      <div className="flex items-center justify-center h-[80vh] animate-in zoom-in-95 duration-300">
+        <div className="text-center space-y-6 max-w-md">
+          <OctagonAlert className="h-20 w-20 text-destructive mx-auto animate-pulse" />
+          <div className="space-y-2">
+            <h2 className="text-3xl font-black text-destructive uppercase">Circuit Breaker Active</h2>
+            <p className="text-muted-foreground">
+              You have reached your {maxLosses}-loss limit for this session. The Trade Gate is locked.
+            </p>
+          </div>
+          <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5 text-left space-y-2">
+            <p className="text-sm font-semibold text-destructive">Why this rule exists:</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              After {maxLosses} {maxLosses === 1 ? "loss" : "losses"}, your brain's threat-detection system is activated. Every subsequent trade is made by an emotionally compromised brain trying to recover losses — the precise state that turns small losses into account-ending drawdowns.
+            </p>
+            <p className="text-sm font-semibold text-muted-foreground mt-2">Your cortex set this rule when it was calm. Honor it.</p>
+          </div>
+          <Button className="w-full" asChild>
+            <a href="/">Return to Psychology Hub</a>
+          </Button>
         </div>
       </div>
     );
@@ -248,13 +281,46 @@ export default function TradeGate() {
               </div>
             )}
 
+            {verdict.status === "TRADE" && submittedData && (
+              <div className="space-y-3">
+                <Button
+                  size="lg"
+                  className="w-full h-14 text-lg font-bold bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => {
+                    sessionStorage.setItem("pendingTrade", JSON.stringify(submittedData));
+                    navigate("/execution");
+                  }}
+                >
+                  <Crosshair className="h-5 w-5 mr-2" /> Enter Active Trade Monitor →
+                </Button>
+                <p className="text-xs text-center text-muted-foreground">Pair and setup grade will be pre-filled. Lock in your plan immediately.</p>
+              </div>
+            )}
+
+            {verdict.status === "REDUCE_RISK" && submittedData && (
+              <div className="space-y-3">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full h-14 text-lg font-bold border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+                  onClick={() => {
+                    sessionStorage.setItem("pendingTrade", JSON.stringify(submittedData));
+                    navigate("/execution");
+                  }}
+                >
+                  <Crosshair className="h-5 w-5 mr-2" /> Enter Monitor — Reduced Risk →
+                </Button>
+                <p className="text-xs text-center text-muted-foreground">Remember: 50% of normal position size. No exceptions.</p>
+              </div>
+            )}
+
             <Button
               size="lg"
-              variant={verdict.status === "HARD_BLOCK" ? "destructive" : "default"}
-              className="w-full h-14 text-lg"
-              onClick={() => { setVerdict(null); setPhase("BODY_SCAN"); setBodyScan({}); form.reset(); }}
+              variant={verdict.status === "HARD_BLOCK" || verdict.status === "NO_TRADE" ? "destructive" : "outline"}
+              className="w-full h-12 text-base"
+              onClick={() => { setVerdict(null); setPhase("BODY_SCAN"); setBodyScan({}); form.reset(); setSubmittedData(null); }}
             >
-              Acknowledge & Reset
+              {verdict.status === "TRADE" || verdict.status === "REDUCE_RISK" ? "← Run Another Check" : "Acknowledge & Reset"}
             </Button>
           </CardContent>
         </Card>

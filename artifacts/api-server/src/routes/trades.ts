@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, tradesTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { db, tradesTable, sessionsTable } from "@workspace/db";
+import { eq, desc, sql } from "drizzle-orm";
 import {
   CreateTradeBody,
   GetTradeParams,
@@ -62,6 +62,14 @@ router.patch("/:id", async (req, res) => {
   const body = UpdateTradeBody.safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "Invalid input" });
 
+  // Get existing trade before update (to detect state changes, avoid double-counting)
+  const [existing] = await db
+    .select()
+    .from(tradesTable)
+    .where(eq(tradesTable.id, params.data.id));
+
+  if (!existing) return res.status(404).json({ error: "Trade not found" });
+
   const updates: Record<string, unknown> = {};
   if (body.data.outcome !== undefined) updates.outcome = body.data.outcome;
   if (body.data.followedPlan !== undefined) updates.followedPlan = body.data.followedPlan;
@@ -78,6 +86,21 @@ router.patch("/:id", async (req, res) => {
     .returning();
 
   if (!updated) return res.status(404).json({ error: "Trade not found" });
+
+  // Auto-track session stats — only count NEW transitions to avoid double-counting
+  const isNewLoss = body.data.outcome === "LOSS" && existing.outcome !== "LOSS";
+  const isNewRuleBreak = body.data.followedPlan === false && existing.followedPlan !== false;
+
+  if (isNewLoss || isNewRuleBreak) {
+    const sessionIncrements: Record<string, unknown> = {};
+    if (isNewLoss) sessionIncrements.lossCount = sql`loss_count + 1`;
+    if (isNewRuleBreak) sessionIncrements.ruleBreaks = sql`rule_breaks + 1`;
+    await db
+      .update(sessionsTable)
+      .set(sessionIncrements)
+      .where(eq(sessionsTable.id, existing.sessionId));
+  }
+
   return res.json(serializeTrade(updated));
 });
 

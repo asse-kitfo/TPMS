@@ -6,7 +6,9 @@ import {
   useGetCurrentSession,
   useCreateTrade,
   useUpdateTrade,
+  useUpdateSession,
   getListTradesQueryKey,
+  getGetCurrentSessionQueryKey,
 } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ShieldAlert, Loader2, Crosshair, Target, AlertOctagon, Wind,
   CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Brain,
-  Zap, Activity, Eye
+  Zap, Activity, Eye, OctagonAlert
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
@@ -165,16 +167,35 @@ export default function ActiveTradeMonitor() {
   const [scienceIndex, setScienceIndex] = useState(0);
   const [brainStateAnswer, setBrainStateAnswer] = useState<"THINKING" | "EMOTIONAL" | null>(null);
   const [brainCheckNotes, setBrainCheckNotes] = useState("");
+  const [circuitBreakerActive, setCircuitBreakerActive] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scienceRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const createTrade = useCreateTrade();
   const updateTrade = useUpdateTrade();
+  const updateSession = useUpdateSession();
 
   const form = useForm<z.infer<typeof tradeSchema>>({
     resolver: zodResolver(tradeSchema),
     defaultValues: { pair: "", setupGrade: "A_PLUS", direction: "LONG", entryPrice: 0, stopLoss: 0, takeProfit: 0 },
   });
+
+  // Pre-fill from Trade Gate carry-through
+  useEffect(() => {
+    if (phase === "SETUP") {
+      const stored = sessionStorage.getItem("pendingTrade");
+      if (stored) {
+        try {
+          const { pair, setupGrade } = JSON.parse(stored);
+          if (pair) form.setValue("pair", pair.toUpperCase());
+          if (setupGrade) form.setValue("setupGrade", setupGrade);
+          sessionStorage.removeItem("pendingTrade");
+        } catch {
+          sessionStorage.removeItem("pendingTrade");
+        }
+      }
+    }
+  }, [phase, form]);
 
   useEffect(() => {
     if (phase === "LIVE") {
@@ -212,18 +233,42 @@ export default function ActiveTradeMonitor() {
 
   const onCloseDebrief = (values: { outcome: "WIN" | "LOSS" | "BREAKEVEN"; followedPlan: boolean; notes: string }) => {
     if (!tradeDetails) return;
+    const maxLosses = parseInt(localStorage.getItem("maxLosses") || "2", 10);
+    const currentLossCount = session?.lossCount ?? 0;
+    const willHitLimit = values.outcome === "LOSS" && (currentLossCount + 1) >= maxLosses;
+
     updateTrade.mutate(
-      { id: tradeDetails.id, data: { outcome: values.outcome, followedPlan: values.followedPlan, notes: values.notes } },
+      {
+        id: tradeDetails.id,
+        data: {
+          outcome: values.outcome,
+          followedPlan: values.followedPlan,
+          notes: values.notes,
+          closedAt: new Date().toISOString(),
+        },
+      },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListTradesQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetCurrentSessionQueryKey() });
           setPhase("SETUP");
           setTradeDetails(null);
           setBrainStateAnswer(null);
           setBrainCheckNotes("");
           form.reset();
+          if (willHitLimit) {
+            setCircuitBreakerActive(true);
+          }
         },
       }
+    );
+  };
+
+  const handleEndSessionCircuitBreaker = () => {
+    if (!session) return;
+    updateSession.mutate(
+      { id: session.id, data: { endedAt: new Date().toISOString() } },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetCurrentSessionQueryKey() }) }
     );
   };
 
@@ -237,6 +282,68 @@ export default function ActiveTradeMonitor() {
           <h2 className="text-2xl font-bold">No Active Session</h2>
           <p className="text-muted-foreground">Start a session from the Psychology Hub first.</p>
           <Button asChild><a href="/">Go to Psychology Hub</a></Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Circuit Breaker Screen ─────────────────────────────────────────
+  if (circuitBreakerActive) {
+    const maxLosses = parseInt(localStorage.getItem("maxLosses") || "2", 10);
+    return (
+      <div className="flex items-center justify-center min-h-[80vh] animate-in zoom-in-95 duration-500">
+        <div className="text-center space-y-8 max-w-md w-full">
+          <OctagonAlert className="h-24 w-24 text-destructive mx-auto animate-pulse" />
+
+          <div className="space-y-3">
+            <p className="text-xs text-destructive uppercase tracking-widest font-bold">Loss Limit Reached</p>
+            <h1 className="text-4xl font-black uppercase tracking-tight text-destructive">Circuit Breaker</h1>
+            <p className="text-muted-foreground text-lg">
+              {maxLosses} {maxLosses === 1 ? "loss" : "losses"} recorded this session.
+            </p>
+          </div>
+
+          <div className="p-5 rounded-xl border-2 border-destructive/40 bg-destructive/5 text-left space-y-3">
+            <p className="font-bold text-destructive text-sm">Your brain right now:</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              After {maxLosses} {maxLosses === 1 ? "loss" : "losses"}, your amygdala has activated the <strong className="text-foreground">threat response</strong>. Capital loss is processed by the same circuitry as physical danger. Your brain is in survival mode — it will push you toward revenge trading, oversizing, and impulsive entries to "recover" what it perceives as lost resources.
+            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              <strong className="text-foreground">Every trade taken from this state is statistically negative.</strong> You set this limit when your cortex was in control. Honor that decision.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Immediate Protocol</p>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              {["Close charts now", "Do not review trades", "Breathe & decompress"].map((step, i) => (
+                <div key={i} className="p-3 rounded-lg border border-border bg-card/50 text-center space-y-1">
+                  <p className="text-xl">{"🖥️📵🫁"[i]}</p>
+                  <p className="text-muted-foreground">{step}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              size="lg"
+              variant="destructive"
+              className="w-full h-14 text-lg font-bold"
+              onClick={handleEndSessionCircuitBreaker}
+              disabled={updateSession.isPending}
+            >
+              {updateSession.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : "End Session & Stand Down"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-muted-foreground"
+              asChild
+            >
+              <a href="/">Return to Psychology Hub</a>
+            </Button>
+          </div>
         </div>
       </div>
     );
