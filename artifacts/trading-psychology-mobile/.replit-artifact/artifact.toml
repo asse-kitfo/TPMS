@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/mobile/"
+title = "ApexTerm Mobile"
+version = "1.0.0"
+id = "artifacts/trading-psychology-mobile"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/mobile/" ]
+localPort = 21104
+
+[services.development]
+run = "pnpm --filter @workspace/trading-psychology-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/trading-psychology-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/trading-psychology-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "21104"
+BASE_PATH = "/mobile/"
