@@ -47,14 +47,25 @@ function ClassicTabLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
-        tabBarStyle: {
-          position: "absolute",
-          backgroundColor: isIOS ? "transparent" : colors.background,
-          borderTopWidth: isWeb ? 1 : 0,
-          borderTopColor: colors.border,
-          elevation: 0,
-          ...(isWeb ? { height: 84 } : {}),
-        },
+        tabBarStyle: isWeb
+          ? {
+              position: "fixed" as any,
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 84,
+              backgroundColor: colors.background,
+              borderTopWidth: 1,
+              borderTopColor: colors.border,
+              elevation: 0,
+              zIndex: 100,
+            }
+          : {
+              position: "absolute",
+              backgroundColor: isIOS ? "transparent" : colors.background,
+              borderTopWidth: 0,
+              elevation: 0,
+            },
         tabBarLabelStyle: {
           fontFamily: "Inter_500Medium",
           fontSize: 10,
