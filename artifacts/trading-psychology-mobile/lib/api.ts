@@ -1,4 +1,6 @@
-const BASE = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
+const BASE = process.env.EXPO_PUBLIC_DOMAIN
+  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
+  : (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}/api${path}`, {
