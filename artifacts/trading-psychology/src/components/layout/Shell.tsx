@@ -6,6 +6,7 @@ import {
   Crosshair,
   BookOpen,
   Terminal,
+  BookMarked,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,7 @@ export function Shell({ children }: ShellProps) {
     { href: "/execution", label: "Active Monitor", icon: Crosshair, sub: "In-trade control" },
     { href: "/journal", label: "Debrief Log", icon: BookOpen, sub: "Post-trade records" },
     { href: "/analytics", label: "My Patterns", icon: BarChart2, sub: "Behavioral insights" },
+    { href: "/rules", label: "My Rules", icon: BookMarked, sub: "Trading rules & review" },
   ];
 
   return (

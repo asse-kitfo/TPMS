@@ -10,6 +10,7 @@ import PreTradeCheck from "@/pages/check";
 import ExecutionMode from "@/pages/execution";
 import TradeJournal from "@/pages/journal";
 import BehavioralAnalytics from "@/pages/analytics";
+import TradingRules from "@/pages/rules";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ function Router() {
         <Route path="/execution" component={ExecutionMode} />
         <Route path="/journal" component={TradeJournal} />
         <Route path="/analytics" component={BehavioralAnalytics} />
+        <Route path="/rules" component={TradingRules} />
         <Route component={NotFound} />
       </Switch>
     </Shell>
