@@ -15,10 +15,9 @@ paths = [ "/" ]
 localPort = 21714
 
 [services.development]
-run = "npx pnpm --filter @workspace/trading-psychology run dev"
+run = "cd artifacts/trading-psychology && PORT=21714 BASE_PATH=/ npx vite --config vite.config.ts --host 0.0.0.0"
 
 [services.production]
-build = [ "npx", "pnpm", "--filter", "@workspace/trading-psychology", "run", "build" ]
 publicDir = "artifacts/trading-psychology/dist/public"
 serve = "static"
 

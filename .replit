@@ -33,7 +33,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=21714 BASE_PATH=/ npx pnpm --filter @workspace/trading-psychology run dev"
+args = "cd artifacts/trading-psychology && PORT=21714 BASE_PATH=/ npx vite --config vite.config.ts --host 0.0.0.0"
 waitForPort = 21714
 
 [[workflows.workflow]]
@@ -42,7 +42,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=8080 DATABASE_URL=$DATABASE_URL SUPABASE_DB_URL=$SUPABASE_DB_URL npx pnpm --filter @workspace/api-server run dev"
+args = "cd artifacts/api-server && PORT=8080 DATABASE_URL=$DATABASE_URL SUPABASE_DB_URL=$SUPABASE_DB_URL node dist/index.mjs"
 waitForPort = 8080
 
 [workflows.workflow.metadata]
