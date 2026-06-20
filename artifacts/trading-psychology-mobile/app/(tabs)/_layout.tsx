@@ -62,7 +62,7 @@ export default function TabLayout() {
         options={{
           title: "Hub",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="activity" size={size} color={color} />
+            <Feather name="home" size={size} color={color} />
           ),
         }}
       />
@@ -71,7 +71,7 @@ export default function TabLayout() {
         options={{
           title: "Gate",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="shield" size={size} color={color} />
+            <Feather name="check-circle" size={size} color={color} />
           ),
         }}
       />
@@ -80,7 +80,7 @@ export default function TabLayout() {
         options={{
           title: "Monitor",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="crosshair" size={size} color={color} />
+            <Feather name="bar-chart-2" size={size} color={color} />
           ),
         }}
       />
@@ -89,7 +89,7 @@ export default function TabLayout() {
         options={{
           title: "Thought",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="edit-3" size={size} color={color} />
+            <Feather name="zap" size={size} color={color} />
           ),
         }}
       />
@@ -98,7 +98,7 @@ export default function TabLayout() {
         options={{
           title: "Journal",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="book-open" size={size} color={color} />
+            <Feather name="list" size={size} color={color} />
           ),
         }}
       />
@@ -107,7 +107,7 @@ export default function TabLayout() {
         options={{
           title: "Rules",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="bookmark" size={size} color={color} />
+            <Feather name="sliders" size={size} color={color} />
           ),
         }}
       />
