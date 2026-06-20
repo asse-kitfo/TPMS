@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Brain, Shield, Flame, AlertTriangle, Play, Square,
-  ArrowRight, CheckSquare2, Crosshair, Zap,
+  ArrowRight, CheckSquare2, Crosshair, Zap, Wind,
   ShieldAlert, OctagonAlert, Timer,
   TrendingUp, TrendingDown, Minus, CheckCircle2, XCircle,
   Clock, BookOpen
@@ -23,7 +23,113 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 
+type BreathPhase = "INHALE" | "HOLD" | "EXHALE" | "IDLE";
 type RitualStep = "RITUAL" | "CONFIG" | "DONE";
+
+function BreathingWidget() {
+  const [phase, setPhase] = useState<BreathPhase>("IDLE");
+  const [timer, setTimer] = useState(0);
+  const [cycles, setCycles] = useState(0);
+
+  useEffect(() => {
+    if (phase === "IDLE") return;
+    const PHASES: { phase: BreathPhase; duration: number }[] = [
+      { phase: "INHALE", duration: 4 },
+      { phase: "HOLD", duration: 7 },
+      { phase: "EXHALE", duration: 8 },
+    ];
+    let phaseIdx = PHASES.findIndex((p) => p.phase === phase);
+    if (phaseIdx < 0) phaseIdx = 0;
+    let remaining = PHASES[phaseIdx].duration;
+    setTimer(remaining);
+    const interval = setInterval(() => {
+      remaining -= 1;
+      setTimer(remaining);
+      if (remaining <= 0) {
+        phaseIdx = (phaseIdx + 1) % 3;
+        if (phaseIdx === 0) setCycles((c) => c + 1);
+        remaining = PHASES[phaseIdx].duration;
+        setPhase(PHASES[phaseIdx].phase);
+        setTimer(remaining);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [phase]);
+
+  const phaseLabel =
+    phase === "INHALE" ? "Breathe In" :
+    phase === "HOLD"   ? "Hold" :
+    phase === "EXHALE" ? "Breathe Out" : "";
+
+  const phaseColor =
+    phase === "INHALE" ? "text-blue-400 border-blue-500/40" :
+    phase === "HOLD"   ? "text-primary border-primary/40" :
+    phase === "EXHALE" ? "text-green-400 border-green-500/40" :
+                         "text-muted-foreground border-border";
+
+  const ringColor =
+    phase === "INHALE" ? "border-blue-500/60" :
+    phase === "HOLD"   ? "border-primary/60" :
+    phase === "EXHALE" ? "border-green-500/60" :
+                         "border-border/40";
+
+  const ringSize =
+    phase === "INHALE" ? "scale-100" :
+    phase === "HOLD"   ? "scale-100" :
+    phase === "EXHALE" ? "scale-75" :
+                         "scale-75";
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">4-7-8 Breathing Reset</p>
+          <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
+            Activates the parasympathetic nervous system. Lowers cortisol. Re-engages the prefrontal cortex. Practice before every session — and the moment you feel activated.
+          </p>
+        </div>
+        <Wind className="h-5 w-5 text-blue-400 flex-shrink-0 opacity-70 mt-0.5" />
+      </div>
+
+      {phase === "IDLE" ? (
+        <Button
+          variant="outline"
+          className="w-full border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/40"
+          onClick={() => { setCycles(0); setPhase("INHALE"); }}
+        >
+          <Wind className="h-4 w-4 mr-2" /> Begin Breathing Reset
+        </Button>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-center">
+            <div className={`relative h-28 w-28 rounded-full border-4 flex items-center justify-center transition-all duration-1000 ${ringColor} ${ringSize}`}>
+              <div className="text-center">
+                <p className={`text-2xl font-black font-mono transition-colors duration-500 ${phaseColor.split(" ")[0]}`}>{timer}</p>
+                <p className={`text-xs font-semibold tracking-widest transition-colors duration-500 ${phaseColor.split(" ")[0]}`}>{phaseLabel}</p>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {(["INHALE", "HOLD", "EXHALE"] as BreathPhase[]).map((p) => (
+              <div key={p} className={`p-2 rounded-lg border text-xs font-mono transition-all duration-300 ${phase === p ? phaseColor : "text-muted-foreground/40 border-transparent"}`}>
+                {p === "INHALE" ? "IN · 4s" : p === "HOLD" ? "HOLD · 7s" : "OUT · 8s"}
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span className="font-mono">{cycles} {cycles === 1 ? "cycle" : "cycles"} complete{cycles >= 3 ? " — cortex re-engaged" : ""}</span>
+            <button
+              onClick={() => { setPhase("IDLE"); setCycles(0); }}
+              className="hover:text-foreground transition-colors"
+            >
+              Stop
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const RITUAL_QUESTIONS = [
   {
@@ -595,28 +701,36 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <Link href="/cbt">
-        <Card className="cursor-pointer border-amber-500/20 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all group">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Brain className="h-5 w-5 text-amber-400" />
-                  <p className="font-bold text-lg">Thought Record</p>
-                  <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-400 bg-amber-500/10">CBT Tool</Badge>
+      <div className="grid md:grid-cols-2 gap-4">
+        <Link href="/cbt">
+          <Card className="cursor-pointer border-amber-500/20 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all group h-full">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Brain className="h-5 w-5 text-amber-400" />
+                    <p className="font-bold text-lg">Thought Record</p>
+                    <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-400 bg-amber-500/10">CBT Tool</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Real-time cognitive reframing. When a trade urge, fear, or emotional pull hits — name the distortion, write the reframe, re-engage the cortex.</p>
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {["Name the distortion", "Write the reframe", "Commit to action"].map(t => (
+                      <span key={t} className="text-xs text-amber-400 font-mono bg-amber-500/10 px-2 py-0.5 rounded">{t}</span>
+                    ))}
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground">Real-time cognitive reframing. When a trade urge, fear, or emotional pull hits — name the distortion, write the reframe, re-engage the cortex.</p>
-                <div className="flex flex-wrap gap-1 pt-1">
-                  {["Name the distortion", "Write the reframe", "Commit to action"].map(t => (
-                    <span key={t} className="text-xs text-amber-400 font-mono bg-amber-500/10 px-2 py-0.5 rounded">{t}</span>
-                  ))}
-                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-amber-400 transition-colors mt-1 flex-shrink-0" />
               </div>
-              <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-amber-400 transition-colors mt-1 flex-shrink-0" />
-            </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Card className="border-blue-500/20 bg-blue-500/5">
+          <CardContent className="p-6">
+            <BreathingWidget />
           </CardContent>
         </Card>
-      </Link>
+      </div>
     </div>
   );
 }
