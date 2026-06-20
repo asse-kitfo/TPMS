@@ -7,6 +7,7 @@ import {
   BookOpen,
   Terminal,
   BookMarked,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,9 +19,10 @@ export function Shell({ children }: ShellProps) {
   const [location] = useLocation();
 
   const navItems = [
-    { href: "/", label: "Psychology Hub", icon: Brain, sub: "Readiness & control" },
+    { href: "/", label: "Command Center", icon: Brain, sub: "Readiness & session" },
     { href: "/check", label: "Trade Gate", icon: ShieldCheck, sub: "Pre-trade check" },
     { href: "/execution", label: "Active Monitor", icon: Crosshair, sub: "In-trade control" },
+    { href: "/cbt", label: "Thought Record", icon: MessageSquare, sub: "Real-time CBT tool" },
     { href: "/journal", label: "Debrief Log", icon: BookOpen, sub: "Post-trade records" },
     { href: "/analytics", label: "My Patterns", icon: BarChart2, sub: "Behavioral insights" },
     { href: "/rules", label: "My Rules", icon: BookMarked, sub: "Trading rules & review" },

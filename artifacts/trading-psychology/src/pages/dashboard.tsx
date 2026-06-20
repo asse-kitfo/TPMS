@@ -15,15 +15,14 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Brain, Shield, Flame, AlertTriangle, Play, Square,
-  ArrowRight, CheckSquare2, Crosshair, Wind, Zap, Crown,
-  Sword, Heart, Eye, ShieldAlert, OctagonAlert, Timer,
+  ArrowRight, CheckSquare2, Crosshair, Zap,
+  ShieldAlert, OctagonAlert, Timer,
   TrendingUp, TrendingDown, Minus, CheckCircle2, XCircle,
-  Clock
+  Clock, BookOpen
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 
-type BreathPhase = "INHALE" | "HOLD" | "EXHALE" | "IDLE";
 type RitualStep = "RITUAL" | "CONFIG" | "DONE";
 
 const RITUAL_QUESTIONS = [
@@ -71,40 +70,6 @@ const READINESS_LEVELS = [
   { min: 0, label: "STAND DOWN", color: "text-red-400", border: "border-destructive/30", bg: "bg-destructive/5", bar: "bg-destructive" },
 ];
 
-const ARCHETYPES = [
-  {
-    icon: Crown,
-    name: "The Ruler",
-    color: "text-primary",
-    border: "border-primary/20",
-    healthy: "Enforces your rules absolutely. Sets the structure your caveman brain needs to operate within.",
-    hijacked: "Becomes rigid, controlling — tries to force the market to comply.",
-  },
-  {
-    icon: Sword,
-    name: "The Warrior",
-    color: "text-red-400",
-    border: "border-destructive/20",
-    healthy: "Acts decisively on A+ setups without hesitation. Accepts loss as the cost of doing business.",
-    hijacked: "Becomes combative — fights the market, refuses to accept stops.",
-  },
-  {
-    icon: Heart,
-    name: "The Caregiver",
-    color: "text-pink-400",
-    border: "border-pink-500/20",
-    healthy: "Protects capital with patience. Nurtures the account through risk discipline.",
-    hijacked: "Becomes fearful — avoids all risk, misses valid setups out of over-protection.",
-  },
-  {
-    icon: Eye,
-    name: "The Sage",
-    color: "text-amber-400",
-    border: "border-amber-500/20",
-    healthy: "Sees the market with probability-based objectivity. No ego in the analysis.",
-    hijacked: "Rationalizes — creates stories to justify what the emotional brain already decided.",
-  },
-];
 
 function getReadiness(planFollowRate: number, interferenceRate: number, streak: number): number {
   const base = 50;
@@ -163,73 +128,6 @@ function CoolingOffBanner({ remainingMs, onDone }: { remainingMs: number; onDone
   );
 }
 
-function MiniBreathingWidget() {
-  const [phase, setPhase] = useState<BreathPhase>("IDLE");
-  const [timer, setTimer] = useState(0);
-  const [cycles, setCycles] = useState(0);
-
-  useEffect(() => {
-    if (phase === "IDLE") return;
-    const PHASES: { phase: BreathPhase; duration: number }[] = [
-      { phase: "INHALE", duration: 4 },
-      { phase: "HOLD", duration: 7 },
-      { phase: "EXHALE", duration: 8 },
-    ];
-    let phaseIdx = PHASES.findIndex(p => p.phase === phase);
-    if (phaseIdx < 0) phaseIdx = 0;
-    let remaining = PHASES[phaseIdx].duration;
-    setTimer(remaining);
-
-    const interval = setInterval(() => {
-      remaining -= 1;
-      setTimer(remaining);
-      if (remaining <= 0) {
-        phaseIdx = (phaseIdx + 1) % 3;
-        if (phaseIdx === 0) setCycles(c => c + 1);
-        remaining = PHASES[phaseIdx].duration;
-        setPhase(PHASES[phaseIdx].phase);
-        setTimer(remaining);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [phase]);
-
-  const phaseLabel = phase === "INHALE" ? "Breathe In" : phase === "HOLD" ? "Hold" : phase === "EXHALE" ? "Breathe Out" : "";
-  const phaseColor = phase === "INHALE" ? "text-blue-400" : phase === "HOLD" ? "text-primary" : phase === "EXHALE" ? "text-green-400" : "text-muted-foreground";
-
-  return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted-foreground uppercase tracking-widest">Daily Practice — 4-7-8 Breathing</p>
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        Breathing practice builds myelinated neural circuitry over time. You are not just calming down — you are reprogramming your brain's automatic responses. Practice daily.
-      </p>
-      {phase === "IDLE" ? (
-        <Button variant="outline" className="w-full" size="sm" onClick={() => { setCycles(0); setPhase("INHALE"); }}>
-          <Wind className="h-4 w-4 mr-2" /> Start 3-Minute Practice
-        </Button>
-      ) : (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className={`flex items-center gap-2 ${phaseColor}`}>
-              <Wind className="h-4 w-4" />
-              <span className="font-semibold text-sm">{phaseLabel}</span>
-            </div>
-            <span className={`font-mono text-2xl font-bold ${phaseColor}`}>{timer}</span>
-          </div>
-          <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-            <div className={`h-full rounded-full transition-all duration-1000 ${phase === "INHALE" ? "bg-blue-400" : phase === "HOLD" ? "bg-primary" : "bg-green-400"}`}
-              style={{ width: `${((phase === "INHALE" ? 4 - timer : phase === "HOLD" ? 7 - timer : 8 - timer) / (phase === "INHALE" ? 4 : phase === "HOLD" ? 7 : 8)) * 100}%` }}
-            />
-          </div>
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{cycles} cycles complete</span>
-            <button onClick={() => { setPhase("IDLE"); setCycles(0); }} className="text-muted-foreground hover:text-foreground">Stop</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -244,7 +142,6 @@ export default function Dashboard() {
 
   const [intention, setIntention] = useState(() => localStorage.getItem("daily-intention") || "");
   const [editingIntention, setEditingIntention] = useState(false);
-  const [archetypeExpanded, setArchetypeExpanded] = useState<number | null>(null);
 
   const [ritualStep, setRitualStep] = useState<RitualStep>("DONE");
   const [ritualAnswers, setRitualAnswers] = useState<Record<string, boolean | null>>({});
@@ -698,48 +595,28 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
+      <Link href="/cbt">
+        <Card className="cursor-pointer border-amber-500/20 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all group">
           <CardContent className="p-6">
-            <MiniBreathingWidget />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-widest">Trading Archetypes</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">Every trader operates from psychological archetypes. When healthy, they are your edge. When hijacked, they are your enemy.</p>
-            <div className="space-y-2">
-              {ARCHETYPES.map((a, i) => {
-                const Icon = a.icon;
-                const isOpen = archetypeExpanded === i;
-                return (
-                  <button key={a.name} type="button" onClick={() => setArchetypeExpanded(isOpen ? null : i)}
-                    className={`w-full text-left p-3 rounded-lg border transition-all ${isOpen ? `${a.border} bg-card` : "border-border/40 hover:border-border"}`}>
-                    <div className="flex items-center gap-3">
-                      <Icon className={`h-4 w-4 ${a.color} flex-shrink-0`} />
-                      <span className={`text-sm font-semibold ${a.color}`}>{a.name}</span>
-                      <ArrowRight className={`h-3 w-3 ml-auto text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`} />
-                    </div>
-                    {isOpen && (
-                      <div className="mt-3 space-y-2 animate-in fade-in duration-200">
-                        <div>
-                          <p className="text-xs text-green-400 font-semibold uppercase tracking-wider mb-1">Healthy</p>
-                          <p className="text-xs text-muted-foreground leading-relaxed">{a.healthy}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-destructive font-semibold uppercase tracking-wider mb-1">Hijacked</p>
-                          <p className="text-xs text-muted-foreground leading-relaxed">{a.hijacked}</p>
-                        </div>
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-amber-400" />
+                  <p className="font-bold text-lg">Thought Record</p>
+                  <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-400 bg-amber-500/10">CBT Tool</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">Real-time cognitive reframing. When a trade urge, fear, or emotional pull hits — name the distortion, write the reframe, re-engage the cortex.</p>
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {["Name the distortion", "Write the reframe", "Commit to action"].map(t => (
+                    <span key={t} className="text-xs text-amber-400 font-mono bg-amber-500/10 px-2 py-0.5 rounded">{t}</span>
+                  ))}
+                </div>
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-amber-400 transition-colors mt-1 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
-      </div>
+      </Link>
     </div>
   );
 }
