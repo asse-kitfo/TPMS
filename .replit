@@ -24,6 +24,10 @@ args = "Trading Psychology System"
 task = "workflow.run"
 args = "API Server"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Mobile App"
+
 [[workflows.workflow]]
 name = "Trading Psychology System"
 author = "agent"
@@ -47,6 +51,18 @@ outputType = "console"
 task = "shell.exec"
 args = "cd artifacts/api-server && node build.mjs && PORT=8080 node dist/index.mjs"
 waitForPort = 8080
+
+[[workflows.workflow]]
+name = "Mobile App"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd artifacts/trading-psychology-mobile && PORT=3001 pnpm run dev"
+waitForPort = 3001
 
 [agent]
 stack = "BEST_EFFORT_FALLBACK"
@@ -80,6 +96,10 @@ externalPort = 3001
 [[ports]]
 localPort = 21714
 externalPort = 3000
+
+[[ports]]
+localPort = 3001
+externalPort = 3001
 
 [nix]
 channel = "stable-25_05"
