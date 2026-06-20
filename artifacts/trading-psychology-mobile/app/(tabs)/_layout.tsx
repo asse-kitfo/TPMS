@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import { Icon } from "@/components/Icon";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
@@ -65,7 +65,7 @@ export default function TabLayout() {
         options={{
           title: "Hub",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="home" size={22} color={color} />
+            <Icon name="home" size={22} color={color} />
           ),
         }}
       />
@@ -74,7 +74,7 @@ export default function TabLayout() {
         options={{
           title: "Gate",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="check-circle" size={22} color={color} />
+            <Icon name="check-circle" size={22} color={color} />
           ),
         }}
       />
@@ -83,7 +83,7 @@ export default function TabLayout() {
         options={{
           title: "Monitor",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="bar-chart-2" size={22} color={color} />
+            <Icon name="bar-chart-2" size={22} color={color} />
           ),
         }}
       />
@@ -92,7 +92,7 @@ export default function TabLayout() {
         options={{
           title: "Thought",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="zap" size={22} color={color} />
+            <Icon name="zap" size={22} color={color} />
           ),
         }}
       />
@@ -101,7 +101,7 @@ export default function TabLayout() {
         options={{
           title: "Journal",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="list" size={22} color={color} />
+            <Icon name="list" size={22} color={color} />
           ),
         }}
       />
@@ -110,7 +110,7 @@ export default function TabLayout() {
         options={{
           title: "Rules",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="sliders" size={22} color={color} />
+            <Icon name="sliders" size={22} color={color} />
           ),
         }}
       />

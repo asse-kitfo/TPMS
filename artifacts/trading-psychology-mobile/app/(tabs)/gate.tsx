@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { Feather } from "@expo/vector-icons";
+import { Icon } from "@/components/Icon";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api, Session, CheckResult, SetupGrade, PsychState } from "@/lib/api";
 import { useColors } from "@/hooks/useColors";
@@ -43,7 +43,7 @@ function VerdictCard({ result, onDismiss }: { result: CheckResult; onDismiss: ()
   return (
     <View style={[styles.verdictCard, { backgroundColor: meta.bg, borderColor: meta.color }]}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 }}>
-        <Feather name={meta.icon as any} size={24} color={meta.color} />
+        <Icon name={meta.icon} size={24} color={meta.color} />
         <Text style={{ color: meta.color, fontSize: 22, fontFamily: "Inter_700Bold" }}>{meta.label}</Text>
       </View>
       {result.verdictReason && (
@@ -108,7 +108,7 @@ export default function GateScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: topPad + 16 }}>
         <EmptyState
-          icon={<Feather name="shield" size={40} color={colors.border} />}
+          icon={<Icon name="shield" size={40} color={colors.border} />}
           title="No active session"
           subtitle="Start a session on the Hub tab first"
         />
@@ -181,7 +181,7 @@ export default function GateScreen() {
                   backgroundColor: isSelected ? colors.primary : "transparent",
                 }]}
               >
-                {isSelected && <Feather name="check" size={12} color={colors.primaryForeground} />}
+                {isSelected && <Icon name="check" size={12} color={colors.primaryForeground} />}
               </View>
             </View>
           );
@@ -243,7 +243,7 @@ export default function GateScreen() {
         label="Run Check"
         onPress={() => checkMutation.mutate()}
         loading={checkMutation.isPending}
-        icon={<Feather name="shield" size={14} color={colors.primaryForeground} />}
+        icon={<Icon name="shield" size={14} color={colors.primaryForeground} />}
         fullWidth
       />
     </ScrollView>

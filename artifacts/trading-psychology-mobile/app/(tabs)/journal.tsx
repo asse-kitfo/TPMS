@@ -8,7 +8,7 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { Icon } from "@/components/Icon";
 import { useQuery } from "@tanstack/react-query";
 import { api, Trade, SetupGrade, TradeOutcome } from "@/lib/api";
 import { useColors } from "@/hooks/useColors";
@@ -53,7 +53,7 @@ function TradeRow({ item }: { item: Trade }) {
           </Text>
           {item.followedPlan !== null && item.followedPlan !== undefined && (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Feather
+              <Icon
                 name={item.followedPlan ? "check" : "x"}
                 size={11}
                 color={item.followedPlan ? "#22c55e" : "#ef4444"}
@@ -65,7 +65,7 @@ function TradeRow({ item }: { item: Trade }) {
           )}
           {item.interfered && (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Feather name="alert-triangle" size={11} color="#f59e0b" />
+              <Icon name="alert-triangle" size={11} color="#f59e0b" />
               <Text style={{ color: "#f59e0b", fontSize: 11, fontFamily: "Inter_500Medium" }}>
                 {item.interferenceType?.replace("_", " ") ?? "Interfered"}
               </Text>
@@ -154,7 +154,7 @@ export default function JournalScreen() {
       )}
       ListEmptyComponent={() => (
         <EmptyState
-          icon={<Feather name="book-open" size={40} color={colors.border} />}
+          icon={<Icon name="book-open" size={40} color={colors.border} />}
           title="No trades yet"
           subtitle="Use the Monitor tab to log trades during your session"
         />

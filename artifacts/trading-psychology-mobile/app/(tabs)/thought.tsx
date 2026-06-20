@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { Feather } from "@expo/vector-icons";
+import { Icon } from "@/components/Icon";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColors } from "@/hooks/useColors";
 import { Button, Card, SectionLabel, webTop, webBottom } from "@/components/UI";
@@ -177,7 +177,7 @@ export default function ThoughtScreen() {
       <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: topPad }}>
         <ScrollView contentContainerStyle={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24, gap: 24 }}>
           <View style={[styles.doneCircle, { borderColor: `${colors.primary}40`, backgroundColor: `${colors.primary}18` }]}>
-            <Feather name="check" size={36} color={colors.primary} />
+            <Icon name="check" size={36} color={colors.primary} />
           </View>
           <View style={{ alignItems: "center", gap: 8 }}>
             <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 2, textTransform: "uppercase" }}>
@@ -236,7 +236,7 @@ export default function ThoughtScreen() {
               </Text>
             </View>
             <TouchableOpacity onPress={reset} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Feather name="x" size={20} color={colors.mutedForeground} />
+              <Icon name="x" size={20} color={colors.mutedForeground} />
             </TouchableOpacity>
           </View>
 
@@ -427,7 +427,7 @@ export default function ThoughtScreen() {
                     <Text style={{ color: distortionId === d.id ? "#f59e0b" : colors.foreground, fontSize: 14, fontFamily: "Inter_700Bold" }}>
                       {d.label}
                     </Text>
-                    {distortionId === d.id && <Feather name="check" size={14} color="#f59e0b" />}
+                    {distortionId === d.id && <Icon name="check" size={14} color="#f59e0b" />}
                   </View>
                   <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 }}>
                     {d.desc}
@@ -508,11 +508,11 @@ export default function ThoughtScreen() {
                     gap: 12,
                   }]}
                 >
-                  <Feather name={a.icon} size={18} color={action === a.id ? colors.primary : colors.mutedForeground} />
+                  <Icon name={a.icon} size={18} color={action === a.id ? colors.primary : colors.mutedForeground} />
                   <Text style={{ color: action === a.id ? colors.primary : colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold", flex: 1 }}>
                     {a.label}
                   </Text>
-                  {action === a.id && <Feather name="check" size={14} color={colors.primary} />}
+                  {action === a.id && <Icon name="check" size={14} color={colors.primary} />}
                 </TouchableOpacity>
               ))}
               <Button
@@ -520,7 +520,7 @@ export default function ThoughtScreen() {
                 onPress={handleComplete}
                 disabled={!action}
                 fullWidth
-                icon={<Feather name="check" size={14} color={colors.primaryForeground} />}
+                icon={<Icon name="check" size={14} color={colors.primaryForeground} />}
                 style={{ marginTop: 4 }}
               />
             </View>
@@ -548,13 +548,13 @@ export default function ThoughtScreen() {
           onPress={() => { setIsActive(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
           style={[styles.newBtn, { backgroundColor: colors.primary }]}
         >
-          <Feather name="plus" size={18} color={colors.primaryForeground} />
+          <Icon name="plus" size={18} color={colors.primaryForeground} />
         </TouchableOpacity>
       </View>
 
       <View style={[styles.infoBanner, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}30` }]}>
         <View style={{ flexDirection: "row", gap: 8, alignItems: "flex-start" }}>
-          <Feather name="zap" size={14} color={colors.primary} style={{ marginTop: 1 }} />
+          <Icon name="zap" size={14} color={colors.primary} style={{ marginTop: 1 }} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: colors.primary, fontSize: 12, fontFamily: "Inter_600SemiBold", marginBottom: 2 }}>
               When to use this
@@ -568,7 +568,7 @@ export default function ThoughtScreen() {
 
       {records.length === 0 ? (
         <View style={{ alignItems: "center", paddingVertical: 48, gap: 12 }}>
-          <Feather name="edit-3" size={40} color={colors.border} />
+          <Icon name="edit-3" size={40} color={colors.border} />
           <Text style={{ color: colors.mutedForeground, fontSize: 15, fontFamily: "Inter_600SemiBold" }}>No thought records yet</Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 }}>
             The next time you feel an emotional pull toward a trade, do a record instead of acting.
@@ -577,7 +577,7 @@ export default function ThoughtScreen() {
             label="Start First Record"
             variant="ghost"
             onPress={() => { setIsActive(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
-            icon={<Feather name="plus" size={14} color={colors.primary} />}
+            icon={<Icon name="plus" size={14} color={colors.primary} />}
           />
         </View>
       ) : (
@@ -633,7 +633,7 @@ export default function ThoughtScreen() {
                     <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular" }}>{dateStr}</Text>
                     <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular" }}>{timeStr}</Text>
                     <TouchableOpacity onPress={() => deleteRecord(record.id)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                      <Feather name="trash-2" size={14} color={`${colors.mutedForeground}60`} />
+                      <Icon name="trash-2" size={14} color={`${colors.mutedForeground}60`} />
                     </TouchableOpacity>
                   </View>
                 </View>

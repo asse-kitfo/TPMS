@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { Feather } from "@expo/vector-icons";
+import { Icon } from "@/components/Icon";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, Session, Trade, SetupGrade, TradeOutcome, InterferenceType } from "@/lib/api";
 import { useColors } from "@/hooks/useColors";
@@ -88,7 +88,7 @@ export default function MonitorScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: topPad + 16 }}>
         <EmptyState
-          icon={<Feather name="crosshair" size={40} color={colors.border} />}
+          icon={<Icon name="crosshair" size={40} color={colors.border} />}
           title="No active session"
           subtitle="Start a session on the Hub tab first"
         />
@@ -154,7 +154,7 @@ export default function MonitorScreen() {
             label="Lock In Trade"
             onPress={() => lockMutation.mutate()}
             loading={lockMutation.isPending}
-            icon={<Feather name="lock" size={14} color={colors.primaryForeground} />}
+            icon={<Icon name="lock" size={14} color={colors.primaryForeground} />}
             fullWidth
           />
         </Card>
@@ -259,7 +259,7 @@ export default function MonitorScreen() {
               label="Submit Debrief"
               onPress={() => debriefMutation.mutate()}
               loading={debriefMutation.isPending}
-              icon={<Feather name="check" size={14} color={colors.primaryForeground} />}
+              icon={<Icon name="check" size={14} color={colors.primaryForeground} />}
               fullWidth
             />
           </Card>

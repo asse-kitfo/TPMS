@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { Feather } from "@expo/vector-icons";
+import { Icon } from "@/components/Icon";
 import { loadRules, saveRules, generateId, Rule, RuleCategory } from "@/lib/storage";
 import { useColors } from "@/hooks/useColors";
 import { Card, Button, Badge, SectionLabel, EmptyState, webTop, webBottom } from "@/components/UI";
@@ -66,7 +66,7 @@ function ReviewModal({ visible, rules, onClose }: { visible: boolean; rules: Rul
             {done ? "Complete" : `${index + 1} of ${rules.length}`}
           </Text>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Feather name="x" size={20} color={colors.foreground} />
+            <Icon name="x" size={20} color={colors.foreground} />
           </TouchableOpacity>
         </View>
 
@@ -75,7 +75,7 @@ function ReviewModal({ visible, rules, onClose }: { visible: boolean; rules: Rul
           {done ? (
             <View style={{ alignItems: "center", gap: 16 }}>
               <View style={[styles.doneCircle, { borderColor: `${colors.success}60`, backgroundColor: `${colors.success}18` }]}>
-                <Feather name="check" size={32} color={colors.success} />
+                <Icon name="check" size={32} color={colors.success} />
               </View>
               <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 2, textTransform: "uppercase" }}>
                 Review Complete
@@ -124,7 +124,7 @@ function ReviewModal({ visible, rules, onClose }: { visible: boolean; rules: Rul
             style={{ opacity: index === 0 ? 0.3 : 1 }}
           >
             <View style={[styles.navBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-              <Feather name="chevron-left" size={20} color={colors.foreground} />
+              <Icon name="chevron-left" size={20} color={colors.foreground} />
             </View>
           </TouchableOpacity>
 
@@ -134,7 +134,7 @@ function ReviewModal({ visible, rules, onClose }: { visible: boolean; rules: Rul
             <Button
               label={index === rules.length - 1 ? "Complete" : "Next"}
               onPress={() => { Haptics.selectionAsync(); goTo(index + 1); }}
-              icon={index < rules.length - 1 ? <Feather name="chevron-right" size={14} color={colors.primaryForeground} /> : undefined}
+              icon={index < rules.length - 1 ? <Icon name="chevron-right" size={14} color={colors.primaryForeground} /> : undefined}
             />
           )}
         </View>
@@ -322,20 +322,20 @@ export default function RulesScreen() {
                   disabled={filtered.length === 0}
                   style={[styles.iconBtn, { backgroundColor: colors.secondary, borderColor: colors.border, opacity: filtered.length === 0 ? 0.4 : 1 }]}
                 >
-                  <Feather name="eye" size={16} color={colors.foreground} />
+                  <Icon name="eye" size={16} color={colors.foreground} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => { setEditingRule(undefined); setFormVisible(true); }}
                   style={[styles.iconBtn, { backgroundColor: colors.primary }]}
                 >
-                  <Feather name="plus" size={16} color={colors.primaryForeground} />
+                  <Icon name="plus" size={16} color={colors.primaryForeground} />
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* Context banner */}
             <View style={[styles.infoBanner, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}30` }]}>
-              <Feather name="info" size={13} color={colors.primary} />
+              <Icon name="info" size={13} color={colors.primary} />
               <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 18 }}>
                 Read your rules before every session using{" "}
                 <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold" }}>Review Mode</Text>
@@ -379,7 +379,7 @@ export default function RulesScreen() {
         )}
         ListEmptyComponent={() => (
           <EmptyState
-            icon={<Feather name="bookmark" size={40} color={colors.border} />}
+            icon={<Icon name="bookmark" size={40} color={colors.border} />}
             title="No rules yet"
             subtitle="Add your first trading rule — written rules beat remembered ones"
           />
@@ -415,13 +415,13 @@ export default function RulesScreen() {
                         onPress={() => handleDelete(item.id)}
                         style={[styles.smallBtn, { backgroundColor: `${colors.destructive}18`, borderColor: colors.destructive }]}
                       >
-                        <Feather name="trash-2" size={12} color={colors.destructive} />
+                        <Icon name="trash-2" size={12} color={colors.destructive} />
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => setDeletingId(null)}
                         style={[styles.smallBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
                       >
-                        <Feather name="x" size={12} color={colors.foreground} />
+                        <Icon name="x" size={12} color={colors.foreground} />
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -430,13 +430,13 @@ export default function RulesScreen() {
                         onPress={() => { setEditingRule(item); setFormVisible(true); }}
                         style={[styles.smallBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
                       >
-                        <Feather name="edit-2" size={12} color={colors.mutedForeground} />
+                        <Icon name="edit-2" size={12} color={colors.mutedForeground} />
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => setDeletingId(item.id)}
                         style={[styles.smallBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
                       >
-                        <Feather name="trash-2" size={12} color={colors.mutedForeground} />
+                        <Icon name="trash-2" size={12} color={colors.mutedForeground} />
                       </TouchableOpacity>
                     </>
                   )}

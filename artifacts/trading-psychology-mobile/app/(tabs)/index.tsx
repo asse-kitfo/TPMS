@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { Feather } from "@expo/vector-icons";
+import { Icon } from "@/components/Icon";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, Session } from "@/lib/api";
 import { loadMaxLosses, saveMaxLosses } from "@/lib/storage";
@@ -38,7 +38,7 @@ function SessionActive({ session, maxLosses, onEnd }: { session: Session; maxLos
     <View style={{ gap: 12 }}>
       {hitLimit && (
         <View style={[styles.alertBanner, { backgroundColor: `${colors.destructive}18`, borderColor: colors.destructive }]}>
-          <Feather name="alert-octagon" size={16} color={colors.destructive} />
+          <Icon name="alert-octagon" size={16} color={colors.destructive} />
           <Text style={{ color: colors.destructive, fontSize: 13, fontFamily: "Inter_600SemiBold", flex: 1 }}>
             CIRCUIT BREAKER — Loss limit reached. End session now.
           </Text>
@@ -87,7 +87,7 @@ function SessionActive({ session, maxLosses, onEnd }: { session: Session; maxLos
           label="End Session"
           variant="ghost"
           onPress={onEnd}
-          icon={<Feather name="power" size={14} color={colors.destructive} />}
+          icon={<Icon name="power" size={14} color={colors.destructive} />}
         />
       </Card>
     </View>
@@ -269,7 +269,7 @@ export default function HubScreen() {
 
             {confirmEnd && (
               <View style={[styles.alertBanner, { backgroundColor: `${colors.warning}18`, borderColor: colors.warning }]}>
-                <Feather name="alert-triangle" size={14} color={colors.warning} />
+                <Icon name="alert-triangle" size={14} color={colors.warning} />
                 <Text style={{ color: colors.warning, fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 }}>
                   No session is active. Start a new one below.
                 </Text>
@@ -280,7 +280,7 @@ export default function HubScreen() {
               label="Start Session"
               onPress={handleStart}
               loading={startMutation.isPending}
-              icon={<Feather name="play" size={14} color={colors.primaryForeground} />}
+              icon={<Icon name="play" size={14} color={colors.primaryForeground} />}
               fullWidth
             />
           </Card>
@@ -357,7 +357,7 @@ function BreathingWidget() {
               borderRadius: 10, paddingVertical: 12, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8,
             }}
           >
-            <Feather name="wind" size={16} color="#3b82f6" />
+            <Icon name="wind" size={16} color="#3b82f6" />
             <Text style={{ color: "#3b82f6", fontSize: 14, fontFamily: "Inter_600SemiBold" }}>Begin Breathing Reset</Text>
           </TouchableOpacity>
         ) : (
