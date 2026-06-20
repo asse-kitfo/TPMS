@@ -27,6 +27,8 @@ args = ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
 [services.production.run.env]
 PORT = "8080"
 NODE_ENV = "production"
+DATABASE_URL = "$DATABASE_URL"
+SUPABASE_DB_URL = "$SUPABASE_DB_URL"
 
 [services.production.health.startup]
 path = "/api/healthz"
