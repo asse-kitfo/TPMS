@@ -85,6 +85,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="thought"
+        options={{
+          title: "Thought",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="edit-3" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="journal"
         options={{
           title: "Journal",

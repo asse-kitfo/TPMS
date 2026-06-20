@@ -71,8 +71,9 @@ interface ButtonProps {
   loading?: boolean;
   icon?: React.ReactNode;
   fullWidth?: boolean;
+  style?: object;
 }
-export function Button({ label, onPress, variant = "primary", size = "md", disabled, loading, icon, fullWidth }: ButtonProps) {
+export function Button({ label, onPress, variant = "primary", size = "md", disabled, loading, icon, fullWidth, style }: ButtonProps) {
   const colors = useColors();
   const heights = { sm: 36, md: 44, lg: 52 };
   const fontSizes = { sm: 13, md: 14, lg: 16 };
@@ -110,6 +111,7 @@ export function Button({ label, onPress, variant = "primary", size = "md", disab
         ...(fullWidth ? { width: "100%" } : {}),
         ...(variant === "secondary" ? { borderWidth: 1, borderColor: colors.border } : {}),
         ...(variant === "ghost" ? { borderWidth: 1, borderColor: colors.border } : {}),
+        ...((style as object) ?? {}),
       }}
     >
       {loading ? (

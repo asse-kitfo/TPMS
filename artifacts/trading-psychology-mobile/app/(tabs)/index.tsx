@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Alert,
   RefreshControl,
   Platform,
+  Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
@@ -286,9 +287,122 @@ export default function HubScreen() {
         )}
       </View>
 
+      {/* Breathing reset */}
+      <BreathingWidget />
+
       {/* Stats quick view */}
       <StatsRow />
     </ScrollView>
+  );
+}
+
+function BreathingWidget() {
+  const colors = useColors();
+  const [phase, setPhase] = useState<"IDLE" | "INHALE" | "HOLD" | "EXHALE">("IDLE");
+  const [timer, setTimer] = useState(0);
+  const [cycles, setCycles] = useState(0);
+  const scaleAnim = useRef(new Animated.Value(0.75)).current;
+
+  useEffect(() => {
+    if (phase === "IDLE") {
+      Animated.timing(scaleAnim, { toValue: 0.75, duration: 600, useNativeDriver: true }).start();
+      return;
+    }
+    const PHASES = [
+      { phase: "INHALE" as const, duration: 4 },
+      { phase: "HOLD" as const, duration: 7 },
+      { phase: "EXHALE" as const, duration: 8 },
+    ];
+    let phaseIdx = PHASES.findIndex(p => p.phase === phase);
+    if (phaseIdx < 0) phaseIdx = 0;
+    let remaining = PHASES[phaseIdx].duration;
+    setTimer(remaining);
+
+    if (phase === "INHALE") {
+      Animated.timing(scaleAnim, { toValue: 1, duration: 4000, useNativeDriver: true }).start();
+    } else if (phase === "EXHALE") {
+      Animated.timing(scaleAnim, { toValue: 0.65, duration: 8000, useNativeDriver: true }).start();
+    }
+
+    const interval = setInterval(() => {
+      remaining -= 1;
+      setTimer(remaining);
+      if (remaining <= 0) {
+        phaseIdx = (phaseIdx + 1) % 3;
+        if (phaseIdx === 0) setCycles(c => c + 1);
+        remaining = PHASES[phaseIdx].duration;
+        setPhase(PHASES[phaseIdx].phase);
+        setTimer(remaining);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [phase]);
+
+  const phaseLabel = phase === "INHALE" ? "Breathe In" : phase === "HOLD" ? "Hold" : phase === "EXHALE" ? "Breathe Out" : "";
+  const ringColor = phase === "INHALE" ? "#3b82f6" : phase === "HOLD" ? colors.primary : phase === "EXHALE" ? "#22c55e" : colors.border;
+
+  return (
+    <View style={{ gap: 12 }}>
+      <SectionLabel text="4-7-8 Breathing Reset" />
+      <View style={{ padding: 14, borderRadius: 14, borderWidth: 1, borderColor: "#3b82f620", backgroundColor: "#3b82f608" }}>
+        <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18, marginBottom: 12 }}>
+          Activates the parasympathetic nervous system. Lowers cortisol. Re-engages the prefrontal cortex. Use before every session and when you feel activated.
+        </Text>
+
+        {phase === "IDLE" ? (
+          <TouchableOpacity
+            onPress={() => { setCycles(0); setPhase("INHALE"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            style={{
+              borderWidth: 1.5, borderColor: "#3b82f640", backgroundColor: "#3b82f610",
+              borderRadius: 10, paddingVertical: 12, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8,
+            }}
+          >
+            <Feather name="wind" size={16} color="#3b82f6" />
+            <Text style={{ color: "#3b82f6", fontSize: 14, fontFamily: "Inter_600SemiBold" }}>Begin Breathing Reset</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ alignItems: "center", gap: 16 }}>
+            <Animated.View style={{
+              width: 100, height: 100, borderRadius: 50,
+              borderWidth: 3, borderColor: ringColor,
+              backgroundColor: `${ringColor}18`,
+              alignItems: "center", justifyContent: "center",
+              transform: [{ scale: scaleAnim }],
+            }}>
+              <Text style={{ color: ringColor, fontSize: 28, fontFamily: "Inter_700Bold" }}>{timer}</Text>
+              <Text style={{ color: ringColor, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5 }}>{phaseLabel}</Text>
+            </Animated.View>
+
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              {(["INHALE", "HOLD", "EXHALE"] as const).map(p => (
+                <View key={p} style={{
+                  paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: phase === p ? `${ringColor}60` : "transparent",
+                  backgroundColor: phase === p ? `${ringColor}15` : "transparent",
+                }}>
+                  <Text style={{
+                    color: phase === p ? ringColor : colors.mutedForeground + "60",
+                    fontSize: 10, fontFamily: "Inter_600SemiBold",
+                  }}>
+                    {p === "INHALE" ? "IN · 4s" : p === "HOLD" ? "HOLD · 7s" : "OUT · 8s"}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>
+                {cycles} {cycles === 1 ? "cycle" : "cycles"}{cycles >= 3 ? " — cortex re-engaged" : ""}
+              </Text>
+              <TouchableOpacity onPress={() => { setPhase("IDLE"); setCycles(0); }}>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_500Medium" }}>Stop</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
