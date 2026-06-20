@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "build": "npx tsc --build && node artifacts/api-server/build.mjs && BASE_PATH=/ PORT=21714 node node_modules/.pnpm/vite@7.3.3_@types+node@25.6.2_jiti@2.7.0_lightningcss@1.32.0_terser@5.48.0_tsx@4.21.0_yaml@2.8.4/node_modules/vite/bin/vite.js build --config artifacts/trading-psychology/vite.config.ts",
+    "build": "node artifacts/api-server/build.mjs && BASE_PATH=/ PORT=21714 node node_modules/.pnpm/vite@7.3.3_@types+node@25.6.2_jiti@2.7.0_lightningcss@1.32.0_terser@5.48.0_tsx@4.21.0_yaml@2.8.4/node_modules/vite/bin/vite.js build --config artifacts/trading-psychology/vite.config.ts",
     "typecheck:libs": "tsc --build",
     "typecheck": "npx tsc --build"
   },

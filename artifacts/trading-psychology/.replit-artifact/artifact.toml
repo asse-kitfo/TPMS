@@ -15,10 +15,10 @@ paths = [ "/" ]
 localPort = 21714
 
 [services.development]
-run = "pnpm --filter @workspace/trading-psychology run dev"
+run = "npx pnpm --filter @workspace/trading-psychology run dev"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/trading-psychology", "run", "build" ]
+build = [ "npx", "pnpm", "--filter", "@workspace/trading-psychology", "run", "build" ]
 publicDir = "artifacts/trading-psychology/dist/public"
 serve = "static"
 
