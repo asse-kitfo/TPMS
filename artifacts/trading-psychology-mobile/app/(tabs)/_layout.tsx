@@ -1,13 +1,11 @@
 import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import { Platform, StyleSheet, useColorScheme, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 
 export default function TabLayout() {
   const colors = useColors();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
 
@@ -33,18 +31,23 @@ export default function TabLayout() {
           : {
               position: "absolute",
               backgroundColor: isIOS ? "transparent" : colors.background,
-              borderTopWidth: 0,
+              borderTopWidth: 1,
+              borderTopColor: colors.border,
               elevation: 0,
+              height: 84,
             },
         tabBarLabelStyle: {
           fontFamily: "Inter_500Medium",
           fontSize: 10,
         },
+        tabBarIconStyle: {
+          marginTop: 4,
+        },
         tabBarBackground: () =>
           isIOS ? (
             <BlurView
-              intensity={100}
-              tint={isDark ? "dark" : "light"}
+              intensity={90}
+              tint="dark"
               style={StyleSheet.absoluteFill}
             />
           ) : isWeb ? (
@@ -62,7 +65,7 @@ export default function TabLayout() {
         options={{
           title: "Hub",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="home" size={size} color={color} />
+            <Feather name="home" size={22} color={color} />
           ),
         }}
       />
@@ -71,7 +74,7 @@ export default function TabLayout() {
         options={{
           title: "Gate",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="check-circle" size={size} color={color} />
+            <Feather name="check-circle" size={22} color={color} />
           ),
         }}
       />
@@ -80,7 +83,7 @@ export default function TabLayout() {
         options={{
           title: "Monitor",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="bar-chart-2" size={size} color={color} />
+            <Feather name="bar-chart-2" size={22} color={color} />
           ),
         }}
       />
@@ -89,7 +92,7 @@ export default function TabLayout() {
         options={{
           title: "Thought",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="zap" size={size} color={color} />
+            <Feather name="zap" size={22} color={color} />
           ),
         }}
       />
@@ -98,7 +101,7 @@ export default function TabLayout() {
         options={{
           title: "Journal",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="list" size={size} color={color} />
+            <Feather name="list" size={22} color={color} />
           ),
         }}
       />
@@ -107,7 +110,7 @@ export default function TabLayout() {
         options={{
           title: "Rules",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="sliders" size={size} color={color} />
+            <Feather name="sliders" size={22} color={color} />
           ),
         }}
       />
