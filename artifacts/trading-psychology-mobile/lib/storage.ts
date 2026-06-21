@@ -64,6 +64,7 @@ const DEFAULT_RULES: Rule[] = [
 
 const RULES_KEY = "apexterm:rules";
 const MAX_LOSSES_KEY = "apexterm:maxLosses";
+const EMOTION_LOG_KEY = "apexterm:emotionLog";
 
 export async function loadRules(): Promise<Rule[]> {
   try {
@@ -94,4 +95,39 @@ export async function saveMaxLosses(n: number): Promise<void> {
 
 export function generateId(): string {
   return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+}
+
+export interface EmotionLogEntry {
+  id: string;
+  timestamp: string;
+  state: string;
+  sessionId: number;
+}
+
+export async function loadEmotionLog(sessionId: number): Promise<EmotionLogEntry[]> {
+  try {
+    const stored = await AsyncStorage.getItem(EMOTION_LOG_KEY);
+    if (stored) {
+      const all: EmotionLogEntry[] = JSON.parse(stored);
+      return all.filter(e => e.sessionId === sessionId);
+    }
+  } catch {}
+  return [];
+}
+
+export async function addEmotionEntry(sessionId: number, state: string): Promise<EmotionLogEntry[]> {
+  const newEntry: EmotionLogEntry = {
+    id: generateId(),
+    timestamp: new Date().toISOString(),
+    state,
+    sessionId,
+  };
+  try {
+    const stored = await AsyncStorage.getItem(EMOTION_LOG_KEY);
+    const all: EmotionLogEntry[] = stored ? JSON.parse(stored) : [];
+    const updated = [newEntry, ...all].slice(0, 200);
+    await AsyncStorage.setItem(EMOTION_LOG_KEY, JSON.stringify(updated));
+    return updated.filter(e => e.sessionId === sessionId);
+  } catch {}
+  return [newEntry];
 }
