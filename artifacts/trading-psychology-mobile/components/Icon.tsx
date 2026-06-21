@@ -204,6 +204,43 @@ const ICONS: Record<string, IconDef> = {
       <Line x1="14" y1="15" x2="14" y2="9" stroke={c} strokeWidth={w} strokeLinecap="round" />
     </Svg>
   ),
+  "heart": (c, s, w) => (
+    <Svg width={s} height={s} viewBox="0 0 24 24">
+      <Path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke={c} strokeWidth={w} {...STROKE} />
+    </Svg>
+  ),
+  "anchor": (c, s, w) => (
+    <Svg width={s} height={s} viewBox="0 0 24 24">
+      <Circle cx="12" cy="5" r="3" stroke={c} strokeWidth={w} fill="none" />
+      <Line x1="12" y1="8" x2="12" y2="22" stroke={c} strokeWidth={w} strokeLinecap="round" />
+      <Path d="M5 15H2a10 10 0 0 0 20 0h-3" stroke={c} strokeWidth={w} {...STROKE} />
+    </Svg>
+  ),
+  "users": (c, s, w) => (
+    <Svg width={s} height={s} viewBox="0 0 24 24">
+      <Path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke={c} strokeWidth={w} {...STROKE} />
+      <Circle cx="9" cy="7" r="4" stroke={c} strokeWidth={w} fill="none" />
+      <Path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke={c} strokeWidth={w} {...STROKE} />
+      <Path d="M16 3.13a4 4 0 0 1 0 7.75" stroke={c} strokeWidth={w} {...STROKE} />
+    </Svg>
+  ),
+  "star": (c, s, w) => (
+    <Svg width={s} height={s} viewBox="0 0 24 24">
+      <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke={c} strokeWidth={w} {...STROKE} />
+    </Svg>
+  ),
+  "activity": (c, s, w) => (
+    <Svg width={s} height={s} viewBox="0 0 24 24">
+      <Polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke={c} strokeWidth={w} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </Svg>
+  ),
+  "target": (c, s, w) => (
+    <Svg width={s} height={s} viewBox="0 0 24 24">
+      <Circle cx="12" cy="12" r="10" stroke={c} strokeWidth={w} fill="none" />
+      <Circle cx="12" cy="12" r="6" stroke={c} strokeWidth={w} fill="none" />
+      <Circle cx="12" cy="12" r="2" stroke={c} strokeWidth={w} fill="none" />
+    </Svg>
+  ),
 };
 
 interface IconProps {

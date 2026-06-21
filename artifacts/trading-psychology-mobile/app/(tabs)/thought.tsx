@@ -26,16 +26,18 @@ interface ThoughtRecord {
   emotion: string;
   emotionIntensity: number;
   automaticThought: string;
+  voiceId: string;
   distortionId: string;
   rationalReframe: string;
   action: string;
 }
 
-type Step = "SITUATION" | "BODY_SCAN" | "EMOTION" | "THOUGHT" | "DISTORTION" | "REFRAME" | "ACTION" | "DONE";
+type Step = "SITUATION" | "BODY_SCAN" | "EMOTION" | "THOUGHT" | "VOICE" | "DISTORTION" | "REFRAME" | "ACTION" | "DONE";
 
+/* ─── Data ─────────────────────────────────────────────────── */
 const SITUATIONS = [
   { id: "BEFORE_TRADE", label: "Before entering a trade", sub: "Urge, FOMO, or setup temptation" },
-  { id: "DURING_TRADE", label: "During a live trade", sub: "Trade moving against me, urge to interfere" },
+  { id: "DURING_TRADE", label: "During a live trade", sub: "Moving against me, urge to interfere" },
   { id: "AFTER_LOSS", label: "After a loss", sub: "Anger, urge to revenge trade" },
   { id: "AFTER_WIN", label: "After a win", sub: "Overconfidence, urge to overtrade" },
   { id: "NO_SETUPS", label: "No setups visible", sub: "Boredom, forcing trades" },
@@ -48,8 +50,8 @@ const BODY_LOCATIONS = [
   { id: "STOMACH", label: "Stomach", desc: "Knot, nausea, sinking feeling" },
   { id: "JAW", label: "Jaw / Face", desc: "Clenching, tension, furrowed brow" },
   { id: "SHOULDERS", label: "Shoulders / Neck", desc: "Raised shoulders, neck stiffness" },
-  { id: "HANDS", label: "Hands", desc: "Gripping mouse, clenched fist, typing harder" },
-  { id: "THROAT", label: "Throat", desc: "Constriction, dry mouth, difficulty swallowing" },
+  { id: "HANDS", label: "Hands", desc: "Gripping, clenched fist" },
+  { id: "THROAT", label: "Throat", desc: "Constriction, dry mouth" },
   { id: "NONE", label: "No tension", desc: "Body is relaxed — state may be mild" },
 ];
 
@@ -65,6 +67,50 @@ const EMOTIONS = [
   { id: "SHAME", label: "Shame / Inadequacy", color: "#64748b" },
 ];
 
+/* ── Rande Howell's "Committee of the Mind" ──────────────── */
+const VOICES = [
+  {
+    id: "INNER_CRITIC",
+    label: "Inner Critic",
+    icon: "x-circle" as const,
+    color: "#ef4444",
+    desc: "Attacking, judging, shaming self",
+    examples: ['"I\'m such an idiot."', '"I always do this."', '"I\'ll never be a good trader."'],
+    insight: "The Inner Critic is not your authentic voice — it is inherited programming from past authority figures. It attacks instead of coaching. It creates shame loops that prevent learning.",
+    coaching: "Ask: what would a great coach say here? A coach gives specific instruction. It does not punish. Rewrite this thought as a coach would say it.",
+  },
+  {
+    id: "ORPHAN",
+    label: "Orphan",
+    icon: "alert-triangle" as const,
+    color: "#f97316",
+    desc: "Fearful, helpless, seeking rescue",
+    examples: ['"I can\'t handle this."', '"What if this never works?"', '"I don\'t know what to do."'],
+    insight: "The Orphan is the wounded child who learned the world is unsafe. It fears loss above all and seeks reassurance — the opposite of what\'s needed in trading uncertainty.",
+    coaching: "You are a professional. You have a tested system. The Orphan is reacting to a perceived threat that is not real. Return to your methodology and act from that identity.",
+  },
+  {
+    id: "SURVIVAL_BRAIN",
+    label: "Survival Brain",
+    icon: "alert-octagon" as const,
+    color: "#f59e0b",
+    desc: "Must control, must recover, certainty-seeking",
+    examples: ['"I NEED to get this money back."', '"I have to find a trade NOW."', '"I can\'t let this loss go."'],
+    insight: "The Survival Brain perceives loss as a biological threat to your existence. It acts in nanoseconds — before the rational mind can intervene — and then your rational mind creates an alibi to justify what it already did.",
+    coaching: "This is biology, not reality. The loss will not harm you. The survival brain\'s reaction is a glitch — an evolutionary misfire. Breathe diaphragmatically. Slow down. The threat is not real.",
+  },
+  {
+    id: "ENTITLED_EGO",
+    label: "Entitled Ego",
+    icon: "star" as const,
+    color: "#a855f7",
+    desc: "The market owes me, I deserve to win",
+    examples: ['"This should have worked."', '"The market is wrong."', '"After all this work, I deserve this."'],
+    insight: "The Ego makes trading personal — every loss is experienced as humiliation or injustice. This produces aggression, revenge trading, or system abandonment, because the Ego cannot accept that the market is simply neutral data.",
+    coaching: "The market does not know you exist. It owes you nothing. Your edge is statistical. This trade\'s outcome is irrelevant to your long-term expectancy. Trade the system, not the outcome.",
+  },
+];
+
 const DISTORTIONS = [
   { id: "FOMO", label: "FOMO", desc: "Fear of missing the move", counter: "There will always be another setup. Missing one trade is irrelevant over 100." },
   { id: "LOSS_AVERSION", label: "Loss Aversion", desc: "Can't close the losing trade", counter: "An unrealized loss is already real. Closing protects capital." },
@@ -73,12 +119,12 @@ const DISTORTIONS = [
   { id: "CATASTROPHIZING", label: "Catastrophizing", desc: "One loss = total disaster", counter: "One loss is one data point. Your risk management caps all damage." },
   { id: "ALL_OR_NOTHING", label: "All-or-Nothing", desc: "Black and white thinking", counter: "Professional recovery is gradual. One trade cannot recover everything." },
   { id: "RECENCY_BIAS", label: "Recency Bias", desc: "Recent streak overrides probability", counter: "Three losses in a row is statistically normal. The edge exists over 100+ trades." },
-  { id: "SUNK_COST", label: "Sunk Cost", desc: "Holding because you've already lost too much", counter: "Ask: would I enter this trade right now at this price? If no — exit." },
-  { id: "CONFIRMATION_BIAS", label: "Confirmation Bias", desc: "Only seeing what confirms the trade", counter: "Look at the chart as if you had no position. What does it tell you?" },
+  { id: "SUNK_COST", label: "Sunk Cost", desc: "Holding because already lost too much", counter: "Ask: would I enter this right now at this price? If no — exit." },
+  { id: "CONFIRMATION_BIAS", label: "Confirmation Bias", desc: "Only seeing what confirms the trade", counter: "Look at the chart as if you have no position. What does it tell you?" },
   { id: "EMOTIONAL_REASONING", label: "Emotional Reasoning", desc: "Feelings treated as market facts", counter: "Feelings are neurochemistry, not market data. What does your system say?" },
-  { id: "NEED_FOR_CERTAINTY", label: "Need for Certainty", desc: "I need to know this will work before I act", counter: "Certainty is not available in markets. Your edge is a probability over hundreds of trades, not this trade." },
-  { id: "IDENTITY_THREAT", label: "Identity Threat", desc: "This loss means I'm a bad trader", counter: "A trade result is data about market conditions, not data about who you are. Your identity is not on the line." },
-  { id: "APPROVAL_SEEKING", label: "Approval / Proving", desc: "I need to prove myself or hit a target today", counter: "The market doesn't know you exist. No one is watching. Trade your system." },
+  { id: "NEED_FOR_CERTAINTY", label: "Need for Certainty", desc: "I need to know this will work", counter: "Certainty is not available in markets. Your edge is a probability over hundreds of trades, not this one." },
+  { id: "IDENTITY_THREAT", label: "Identity Threat", desc: "This loss means I'm a bad trader", counter: "A trade result is data about market conditions, not data about who you are." },
+  { id: "ALIBI", label: "Alibi / Rationalization", desc: "Rational justification of an emotional decision", counter: "Ask: did my emotional brain decide first, and my rational brain justify it? That's an alibi. Name it." },
 ];
 
 const ACTIONS = [
@@ -88,8 +134,9 @@ const ACTIONS = [
   { id: "REVIEW_RULES", label: "Re-read my trading rules", icon: "book-open" as const },
   { id: "OBSERVE", label: "Become the observer — watch without reacting", icon: "eye" as const },
   { id: "SMALL_SIZE", label: "If I trade, cut size by 50%", icon: "minimize-2" as const },
-  { id: "UNCERTAINTY_SCRIPT", label: "Recite: 'I accept uncertainty as the cost of doing business'", icon: "shield" as const },
-  { id: "BODY_RELEASE", label: "Release the body tension consciously — drop shoulders, unclench jaw", icon: "crosshair" as const },
+  { id: "UNCERTAINTY_SCRIPT", label: "Recite: 'I accept uncertainty as the cost of doing business'", icon: "anchor" as const },
+  { id: "BODY_RELEASE", label: "Release the body tension — drop shoulders, unclench jaw, breathe out", icon: "crosshair" as const },
+  { id: "ARCHETYPE", label: "Invoke my session archetype's mantra", icon: "zap" as const },
 ];
 
 const QUICK_THOUGHTS = [
@@ -103,35 +150,33 @@ const QUICK_THOUGHTS = [
   "I already know this will work.",
 ];
 
+/* ─── Helpers ───────────────────────────────────────────────── */
 function generateId() {
   return `tr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
-
 async function loadRecords(): Promise<ThoughtRecord[]> {
   try {
     const s = await AsyncStorage.getItem(STORAGE_KEY);
     return s ? JSON.parse(s) : [];
   } catch { return []; }
 }
-
 async function saveRecords(records: ThoughtRecord[]) {
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 }
 
+/* ─── Step Progress Bar ─────────────────────────────────────── */
 function StepBar({ current, total }: { current: number; total: number }) {
   const colors = useColors();
   return (
     <View style={{ flexDirection: "row", gap: 4, marginBottom: 20 }}>
       {Array.from({ length: total }, (_, i) => (
-        <View key={i} style={[styles.stepDot, {
-          flex: 1,
-          backgroundColor: i < current ? colors.primary : i === current ? `${colors.primary}60` : colors.secondary,
-        }]} />
+        <View key={i} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: i < current ? colors.primary : i === current ? `${colors.primary}60` : colors.secondary }} />
       ))}
     </View>
   );
 }
 
+/* ─── Main Screen ───────────────────────────────────────────── */
 export default function ThoughtScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -146,6 +191,7 @@ export default function ThoughtScreen() {
   const [emotion, setEmotion] = useState("");
   const [emotionIntensity, setEmotionIntensity] = useState(6);
   const [automaticThought, setAutomaticThought] = useState("");
+  const [voiceId, setVoiceId] = useState("");
   const [distortionId, setDistortionId] = useState("");
   const [rationalReframe, setRationalReframe] = useState("");
   const [action, setAction] = useState("");
@@ -154,12 +200,12 @@ export default function ThoughtScreen() {
 
   useEffect(() => { loadRecords().then(setRecords); }, []);
 
-  const steps: Step[] = ["SITUATION", "BODY_SCAN", "EMOTION", "THOUGHT", "DISTORTION", "REFRAME", "ACTION"];
+  const steps: Step[] = ["SITUATION", "BODY_SCAN", "EMOTION", "THOUGHT", "VOICE", "DISTORTION", "REFRAME", "ACTION"];
   const stepIndex = steps.indexOf(step);
 
   const reset = () => {
     setStep("SITUATION"); setSituation(""); setBodyLocation(""); setBodyTension(5);
-    setEmotion(""); setEmotionIntensity(6); setAutomaticThought("");
+    setEmotion(""); setEmotionIntensity(6); setAutomaticThought(""); setVoiceId("");
     setDistortionId(""); setRationalReframe(""); setAction(""); setIsActive(false);
   };
 
@@ -167,7 +213,7 @@ export default function ThoughtScreen() {
     const record: ThoughtRecord = {
       id: generateId(), createdAt: new Date().toISOString(),
       situation, bodyLocation, bodyTension, emotion, emotionIntensity,
-      automaticThought, distortionId, rationalReframe, action,
+      automaticThought, voiceId, distortionId, rationalReframe, action,
     };
     const updated = [record, ...records];
     setRecords(updated);
@@ -184,7 +230,9 @@ export default function ThoughtScreen() {
   };
 
   const selectedDistortion = DISTORTIONS.find(d => d.id === distortionId);
+  const selectedVoice = VOICES.find(v => v.id === voiceId);
 
+  /* ── DONE ────────────────────────────────────────────────── */
   if (isActive && step === "DONE") {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: topPad }}>
@@ -193,20 +241,16 @@ export default function ThoughtScreen() {
             <Icon name="check" size={36} color={colors.primary} />
           </View>
           <View style={{ alignItems: "center", gap: 8 }}>
-            <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 2, textTransform: "uppercase" }}>
-              Thought Record Complete
-            </Text>
-            <Text style={{ color: colors.foreground, fontSize: 28, fontFamily: "Inter_700Bold", textAlign: "center" }}>
-              Cortex re-engaged.
-            </Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22 }}>
-              You named the distortion. You wrote the reframe. The amygdala cannot sustain its hijack when the prefrontal cortex is active.
+            <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 2, textTransform: "uppercase" }}>Thought Record Complete</Text>
+            <Text style={{ color: colors.foreground, fontSize: 28, fontFamily: "Inter_700Bold", textAlign: "center" }}>Cortex re-engaged.</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22 }}>
+              You named the voice. You named the distortion. You wrote the reframe. The amygdala cannot sustain its hijack when the prefrontal cortex is active.
             </Text>
           </View>
           {selectedDistortion && (
             <View style={[styles.infoBanner, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}30` }]}>
               <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
-                Your counter — {selectedDistortion.label}
+                Counter — {selectedDistortion.label}
               </Text>
               <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20, fontStyle: "italic" }}>
                 "{selectedDistortion.counter}"
@@ -222,18 +266,20 @@ export default function ThoughtScreen() {
     );
   }
 
-  if (isActive) {
-    const stepLabels: Record<Step, string> = {
-      SITUATION: "What triggered this?",
-      BODY_SCAN: "Where does your body hold it?",
-      EMOTION: "What are you feeling?",
-      THOUGHT: "What is the automatic thought?",
-      DISTORTION: "Name the cognitive distortion",
-      REFRAME: "Write the rational reframe",
-      ACTION: "Commit to an action",
-      DONE: "",
-    };
+  /* ── ACTIVE FLOW ─────────────────────────────────────────── */
+  const stepLabels: Record<Step, string> = {
+    SITUATION: "What triggered this?",
+    BODY_SCAN: "Where does your body hold it?",
+    EMOTION: "What are you feeling?",
+    THOUGHT: "What is the automatic thought?",
+    VOICE: "Whose voice is speaking?",
+    DISTORTION: "Name the cognitive distortion",
+    REFRAME: "Write the rational reframe",
+    ACTION: "Commit to an action",
+    DONE: "",
+  };
 
+  if (isActive) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         <ScrollView
@@ -263,8 +309,7 @@ export default function ThoughtScreen() {
                 <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>The specific context that triggered this thought or feeling.</Text>
               </View>
               {SITUATIONS.map(s => (
-                <TouchableOpacity
-                  key={s.id} activeOpacity={0.8}
+                <TouchableOpacity key={s.id} activeOpacity={0.8}
                   onPress={() => { setSituation(s.id); setStep("BODY_SCAN"); Haptics.selectionAsync(); }}
                   style={[styles.optionCard, { borderColor: situation === s.id ? colors.primary : colors.border, backgroundColor: situation === s.id ? `${colors.primary}12` : colors.card }]}
                 >
@@ -282,80 +327,60 @@ export default function ThoughtScreen() {
                 <Text style={{ color: "#3b82f6", fontSize: 13, fontFamily: "Inter_700Bold", marginBottom: 4 }}>Body Scan — Rande Howell</Text>
                 <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 2 }}>Where does your body hold this?</Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 }}>
-                  The body knows before the mind does. Emotional activation is first somatic — then cognitive. Scan your body right now and identify where you feel tension.
+                  The body knows before the mind does. Emotional activation is first somatic — then cognitive. Physical tension signals that the amygdala has already fired. Scan your body now.
                 </Text>
               </View>
-
-              <View style={{ gap: 8 }}>
-                {BODY_LOCATIONS.map(loc => {
-                  const isSelected = bodyLocation === loc.id;
-                  return (
-                    <TouchableOpacity
-                      key={loc.id} activeOpacity={0.8}
-                      onPress={() => { setBodyLocation(loc.id); Haptics.selectionAsync(); }}
-                      style={[styles.optionCard, { borderColor: isSelected ? "#3b82f6" : colors.border, backgroundColor: isSelected ? "#3b82f612" : colors.card }]}
-                    >
-                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                        <Text style={{ color: isSelected ? "#3b82f6" : colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold" }}>{loc.label}</Text>
-                        {isSelected && <Icon name="check" size={14} color="#3b82f6" />}
-                      </View>
-                      <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 }}>{loc.desc}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
+              {BODY_LOCATIONS.map(loc => {
+                const isSelected = bodyLocation === loc.id;
+                return (
+                  <TouchableOpacity key={loc.id} activeOpacity={0.8}
+                    onPress={() => { setBodyLocation(loc.id); Haptics.selectionAsync(); }}
+                    style={[styles.optionCard, { borderColor: isSelected ? "#3b82f6" : colors.border, backgroundColor: isSelected ? "#3b82f612" : colors.card }]}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                      <Text style={{ color: isSelected ? "#3b82f6" : colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold" }}>{loc.label}</Text>
+                      {isSelected && <Icon name="check" size={14} color="#3b82f6" />}
+                    </View>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 }}>{loc.desc}</Text>
+                  </TouchableOpacity>
+                );
+              })}
               {bodyLocation && bodyLocation !== "NONE" && (
                 <View style={{ gap: 8, marginTop: 4 }}>
-                  <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>
-                    Tension intensity — how strong?
-                  </Text>
+                  <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>Tension intensity</Text>
                   <View style={{ flexDirection: "row", gap: 4 }}>
                     {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
                       const filled = n <= bodyTension;
                       const barColor = bodyTension >= 8 ? "#ef4444" : bodyTension >= 5 ? "#f97316" : "#3b82f6";
-                      return (
-                        <TouchableOpacity
-                          key={n} onPress={() => { setBodyTension(n); Haptics.selectionAsync(); }}
-                          style={{ flex: 1, height: 28, borderRadius: 4, backgroundColor: filled ? barColor : colors.secondary }}
-                        />
-                      );
+                      return <TouchableOpacity key={n} onPress={() => { setBodyTension(n); Haptics.selectionAsync(); }} style={{ flex: 1, height: 28, borderRadius: 4, backgroundColor: filled ? barColor : colors.secondary }} />;
                     })}
                   </View>
                   <Text style={{ color: bodyTension >= 7 ? "#ef4444" : "#3b82f6", fontSize: 12, fontFamily: "Inter_600SemiBold", textAlign: "center" }}>
-                    {bodyTension}/10 — {bodyTension >= 8 ? "High activation — amygdala engaged" : bodyTension >= 5 ? "Moderate — elevated state" : "Mild — manageable"}
+                    {bodyTension}/10 — {bodyTension >= 8 ? "High activation — amygdala engaged" : bodyTension >= 5 ? "Moderate — elevated" : "Mild"}
                   </Text>
                   <View style={{ padding: 10, borderRadius: 8, backgroundColor: "#3b82f608", borderWidth: 1, borderColor: "#3b82f620" }}>
                     <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16, fontStyle: "italic" }}>
-                      "Now consciously release the tension in that area. Drop your shoulders. Unclench your jaw. Breathe out slowly. This alone reduces cortisol output." — Rande Howell
+                      "Consciously release the tension in that area. Drop your shoulders. Unclench your jaw. Breathe out slowly. This alone reduces cortisol." — Rande Howell
                     </Text>
                   </View>
                 </View>
               )}
-
-              <Button
-                label="Continue"
-                onPress={() => setStep("EMOTION")}
-                disabled={!bodyLocation}
-                fullWidth
-                style={{ marginTop: 4 }}
-              />
+              <Button label="Continue" onPress={() => setStep("EMOTION")} disabled={!bodyLocation} fullWidth style={{ marginTop: 4 }} />
             </View>
           )}
 
           {/* EMOTION */}
           {step === "EMOTION" && (
             <View style={{ gap: 10 }}>
-              <View style={[styles.infoBanner, { backgroundColor: colors.secondary, borderColor: colors.border, marginBottom: 4 }]}>
-                <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 2 }}>What emotion is present?</Text>
+              <View style={[styles.infoBanner, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+                <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 2 }}>Name the emotion</Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>
-                  Naming the emotion reduces its intensity by up to 50% (fMRI studies). Don't filter — name what's actually there.
+                  Labelling an emotion reduces its intensity by up to 50% (fMRI studies). Don't filter — name what's actually present.
                 </Text>
               </View>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                 {EMOTIONS.map(e => (
-                  <TouchableOpacity
-                    key={e.id} onPress={() => { setEmotion(e.id); Haptics.selectionAsync(); }} activeOpacity={0.8}
+                  <TouchableOpacity key={e.id} onPress={() => { setEmotion(e.id); Haptics.selectionAsync(); }} activeOpacity={0.8}
                     style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: emotion === e.id ? e.color : colors.border, backgroundColor: emotion === e.id ? `${e.color}18` : colors.secondary }}
                   >
                     <Text style={{ color: emotion === e.id ? e.color : colors.mutedForeground, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>{e.label}</Text>
@@ -364,18 +389,16 @@ export default function ThoughtScreen() {
               </View>
               {emotion && (
                 <View style={{ gap: 8, marginTop: 8 }}>
-                  <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>Intensity — how strong?</Text>
+                  <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>Intensity</Text>
                   <View style={{ flexDirection: "row", gap: 4 }}>
                     {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
                       const filled = n <= emotionIntensity;
                       const barColor = emotionIntensity >= 8 ? "#ef4444" : emotionIntensity >= 6 ? "#f97316" : emotionIntensity >= 4 ? "#f59e0b" : colors.primary;
-                      return (
-                        <TouchableOpacity key={n} onPress={() => { setEmotionIntensity(n); Haptics.selectionAsync(); }} style={{ flex: 1, height: 32, borderRadius: 4, backgroundColor: filled ? barColor : colors.secondary }} />
-                      );
+                      return <TouchableOpacity key={n} onPress={() => { setEmotionIntensity(n); Haptics.selectionAsync(); }} style={{ flex: 1, height: 32, borderRadius: 4, backgroundColor: filled ? barColor : colors.secondary }} />;
                     })}
                   </View>
                   <Text style={{ color: emotionIntensity >= 8 ? "#ef4444" : emotionIntensity >= 6 ? "#f97316" : colors.primary, fontSize: 12, fontFamily: "Inter_600SemiBold", textAlign: "center" }}>
-                    {emotionIntensity}/10 — {emotionIntensity >= 8 ? "Intense — high impairment" : emotionIntensity >= 6 ? "Strong — be careful" : emotionIntensity >= 4 ? "Moderate" : "Mild"}
+                    {emotionIntensity}/10
                   </Text>
                 </View>
               )}
@@ -388,7 +411,7 @@ export default function ThoughtScreen() {
             <View style={{ gap: 10 }}>
               <View style={[styles.infoBanner, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
                 <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 2 }}>What is the exact thought?</Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>Write it word-for-word. No editing — write what the emotional brain is actually saying.</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>Write it word-for-word. No editing — write what the emotional brain is actually saying right now.</Text>
               </View>
               <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 1 }}>Quick select</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
@@ -406,7 +429,66 @@ export default function ThoughtScreen() {
                 multiline numberOfLines={3}
                 style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.secondary }]}
               />
-              <Button label="Continue" onPress={() => setStep("DISTORTION")} disabled={automaticThought.trim().length < 3} fullWidth />
+              <Button label="Continue" onPress={() => setStep("VOICE")} disabled={automaticThought.trim().length < 3} fullWidth />
+            </View>
+          )}
+
+          {/* VOICE — Rande Howell's Committee of the Mind */}
+          {step === "VOICE" && (
+            <View style={{ gap: 10 }}>
+              <View style={[styles.infoBanner, { backgroundColor: "#6366f110", borderColor: "#6366f130" }]}>
+                <Text style={{ color: "#6366f1", fontSize: 13, fontFamily: "Inter_700Bold", marginBottom: 4 }}>
+                  Committee of the Mind — Rande Howell
+                </Text>
+                <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 2 }}>Whose voice is speaking this thought?</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 }}>
+                  The mind is a community of rival programs. Most of them were inherited — not chosen. Identifying which program is running this thought is the first step to disrupting it.
+                </Text>
+              </View>
+
+              <View style={[styles.infoBanner, { backgroundColor: "#f59e0b10", borderColor: "#f59e0b30" }]}>
+                <Text style={{ color: "#f59e0b", fontSize: 12, fontFamily: "Inter_500Medium" }}>
+                  Your thought: <Text style={{ color: colors.foreground, fontStyle: "italic" }}>"{automaticThought}"</Text>
+                </Text>
+              </View>
+
+              <View style={{ gap: 8 }}>
+                {VOICES.map(v => {
+                  const isSelected = voiceId === v.id;
+                  return (
+                    <TouchableOpacity key={v.id} activeOpacity={0.8} onPress={() => { setVoiceId(v.id); Haptics.selectionAsync(); }}
+                      style={[styles.optionCard, { borderColor: isSelected ? v.color : colors.border, backgroundColor: isSelected ? `${v.color}10` : colors.card }]}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                        <Icon name={v.icon} size={16} color={isSelected ? v.color : colors.mutedForeground} />
+                        <Text style={{ color: isSelected ? v.color : colors.foreground, fontSize: 14, fontFamily: "Inter_700Bold", flex: 1 }}>{v.label}</Text>
+                        {isSelected && <Icon name="check" size={14} color={v.color} />}
+                      </View>
+                      <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 4 }}>{v.desc}</Text>
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
+                        {v.examples.map(ex => (
+                          <View key={ex} style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: `${v.color}12`, borderWidth: 1, borderColor: `${v.color}25` }}>
+                            <Text style={{ color: v.color, fontSize: 10, fontFamily: "Inter_400Regular" }}>{ex}</Text>
+                          </View>
+                        ))}
+                      </View>
+                      {isSelected && (
+                        <View style={{ marginTop: 10, padding: 10, borderRadius: 8, backgroundColor: `${v.color}08`, borderWidth: 1, borderColor: `${v.color}20`, gap: 6 }}>
+                          <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16, fontStyle: "italic" }}>
+                            {v.insight}
+                          </Text>
+                          <View style={{ height: 1, backgroundColor: `${v.color}20` }} />
+                          <Text style={{ color: v.color, fontSize: 11, fontFamily: "Inter_600SemiBold", lineHeight: 16 }}>
+                            {v.coaching}
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Button label="Continue" onPress={() => setStep("DISTORTION")} disabled={!voiceId} fullWidth style={{ marginTop: 4 }} />
             </View>
           )}
 
@@ -415,11 +497,12 @@ export default function ThoughtScreen() {
             <View style={{ gap: 8 }}>
               <View style={[styles.infoBanner, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
                 <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 2 }}>Name the cognitive distortion</Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>Identifying the distortion type interrupts the automatic pattern and re-activates the prefrontal cortex.</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>Identifying the pattern interrupts the automatic hijack and re-activates the prefrontal cortex.</Text>
               </View>
               <View style={[styles.infoBanner, { backgroundColor: "#f59e0b10", borderColor: "#f59e0b30" }]}>
                 <Text style={{ color: "#f59e0b", fontSize: 12, fontFamily: "Inter_500Medium" }}>
-                  Your thought: <Text style={{ color: colors.foreground, fontStyle: "italic" }}>"{automaticThought}"</Text>
+                  Voice: <Text style={{ color: selectedVoice?.color ?? colors.foreground }}>{selectedVoice?.label ?? ""}</Text>
+                  {"  ·  "}Thought: <Text style={{ color: colors.foreground, fontStyle: "italic" }}>"{automaticThought}"</Text>
                 </Text>
               </View>
               {DISTORTIONS.map(d => (
@@ -442,7 +525,7 @@ export default function ThoughtScreen() {
             <View style={{ gap: 10 }}>
               <View style={[styles.infoBanner, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
                 <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 2 }}>Write the rational reframe</Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>What would your best, most objective self say back to that thought? In your own words, it's more powerful.</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>What would your most objective, disciplined self say back to that thought?</Text>
               </View>
               <View style={[styles.infoBanner, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}30` }]}>
                 <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
@@ -455,6 +538,16 @@ export default function ThoughtScreen() {
                   <Text style={{ color: colors.primary, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Use this as my reframe →</Text>
                 </TouchableOpacity>
               </View>
+              {selectedVoice && (
+                <View style={[styles.infoBanner, { backgroundColor: `${selectedVoice.color}08`, borderColor: `${selectedVoice.color}20` }]}>
+                  <Text style={{ color: selectedVoice.color, fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+                    {selectedVoice.label} coaching
+                  </Text>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 }}>
+                    {selectedVoice.coaching}
+                  </Text>
+                </View>
+              )}
               <TextInput
                 value={rationalReframe} onChangeText={setRationalReframe}
                 placeholder="Or write your own reframe..." placeholderTextColor={colors.mutedForeground}
@@ -471,7 +564,7 @@ export default function ThoughtScreen() {
               <View style={[styles.infoBanner, { backgroundColor: colors.secondary, borderColor: colors.border, marginBottom: 4 }]}>
                 <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 2 }}>Commit to one action</Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>
-                  The CBT cycle closes with a behavioral commitment. Choosing an action re-engages agency — you are no longer reacting, you are deciding.
+                  The CBT cycle closes with a behavioral commitment. Choosing an action re-engages agency — you stop reacting and start deciding.
                 </Text>
               </View>
               {ACTIONS.map(a => (
@@ -491,29 +584,24 @@ export default function ThoughtScreen() {
     );
   }
 
-  // LIST VIEW
+  /* ── LIST VIEW ───────────────────────────────────────────── */
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: bottomPad, gap: 20 }}
       showsVerticalScrollIndicator={false}
     >
-      <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
-        <View>
-          <Text style={{ color: colors.foreground, fontSize: 26, fontFamily: "Inter_700Bold" }}>Thought Lab</Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 }}>
-            CBT + Rande Howell · somatic interruption
-          </Text>
-        </View>
+      <View>
+        <Text style={{ color: colors.foreground, fontSize: 26, fontFamily: "Inter_700Bold" }}>Thought Lab</Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 }}>
+          CBT · Rande Howell · somatic interruption
+        </Text>
       </View>
 
-      {/* What is this */}
       <View style={{ padding: 14, borderRadius: 12, backgroundColor: `${colors.primary}08`, borderWidth: 1, borderColor: `${colors.primary}20`, gap: 6 }}>
-        <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase" }}>
-          How it works
-        </Text>
+        <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase" }}>8-step protocol</Text>
         <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 }}>
-          Body Scan → Name the emotion → Identify the automatic thought → Name the distortion → Write the reframe → Commit to action. The act of naming interrupts the amygdala hijack and re-engages your prefrontal cortex.
+          Body Scan → Emotion → Automatic Thought → Identify the Voice (Inner Critic / Orphan / Survival Brain / Entitled Ego) → Distortion → Reframe → Action. Naming interrupts the hijack. The prefrontal cortex re-engages when you observe rather than react.
         </Text>
       </View>
 
@@ -531,13 +619,15 @@ export default function ThoughtScreen() {
             const isExpanded = expandedId === record.id;
             const emotion = EMOTIONS.find(e => e.id === record.emotion);
             const distortion = DISTORTIONS.find(d => d.id === record.distortionId);
+            const voice = VOICES.find(v => v.id === record.voiceId);
             const bodyLoc = BODY_LOCATIONS.find(b => b.id === record.bodyLocation);
             const date = new Date(record.createdAt);
             const dateStr = date.toLocaleDateString([], { month: "short", day: "numeric" });
             const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
             return (
-              <TouchableOpacity key={record.id} activeOpacity={0.8} onPress={() => setExpandedId(isExpanded ? null : record.id)}
+              <TouchableOpacity key={record.id} activeOpacity={0.8}
+                onPress={() => setExpandedId(isExpanded ? null : record.id)}
                 style={{ borderRadius: 12, borderWidth: 1, borderColor: isExpanded ? colors.primary : colors.border, backgroundColor: colors.card, overflow: "hidden" }}
               >
                 <View style={{ padding: 14, flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
@@ -545,13 +635,14 @@ export default function ThoughtScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: emotion?.color ?? colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>
                       {emotion?.label ?? record.emotion}
+                      {voice ? ` · ${voice.label}` : ""}
                       {distortion ? ` · ${distortion.label}` : ""}
                     </Text>
                     <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 }}>
                       {dateStr} at {timeStr}
                     </Text>
                   </View>
-                  <Icon name={isExpanded ? "chevron-right" : "chevron-right"} size={16} color={colors.mutedForeground} />
+                  <Icon name="chevron-right" size={16} color={colors.mutedForeground} />
                 </View>
                 {isExpanded && (
                   <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: 8, borderTopWidth: 1, borderTopColor: colors.border }}>
@@ -559,6 +650,12 @@ export default function ThoughtScreen() {
                       <View>
                         <Text style={{ color: "#3b82f6", fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase", marginTop: 10 }}>Body</Text>
                         <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 }}>{bodyLoc.label} — tension {record.bodyTension}/10</Text>
+                      </View>
+                    )}
+                    {voice && (
+                      <View>
+                        <Text style={{ color: voice.color, fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase", marginTop: 6 }}>Voice</Text>
+                        <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 }}>{voice.label} — {voice.desc}</Text>
                       </View>
                     )}
                     <View>
@@ -587,7 +684,6 @@ export default function ThoughtScreen() {
 }
 
 const styles = StyleSheet.create({
-  stepDot: { height: 3, borderRadius: 2 },
   doneCircle: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, alignItems: "center", justifyContent: "center" },
   infoBanner: { padding: 12, borderRadius: 10, borderWidth: 1 },
   optionCard: { padding: 14, borderRadius: 10, borderWidth: 1.5 },

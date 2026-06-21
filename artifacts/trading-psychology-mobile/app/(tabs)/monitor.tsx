@@ -372,6 +372,44 @@ export default function MonitorScreen() {
               </View>
             )}
 
+            {/* Alibi awareness — Rande Howell's rationalization trap */}
+            <View>
+              <SectionLabel text="Alibi Awareness" />
+              <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", marginBottom: 8, lineHeight: 16 }}>
+                Rande Howell: "The rational brain often creates alibis — justifications produced after the emotional brain has already made a decision." How honest is your decision here?
+              </Text>
+              <View style={{ gap: 8 }}>
+                {[
+                  { id: "CLEAN", label: "Clean execution", desc: "I followed my system. My rational brain made this decision.", color: "#22c55e" },
+                  { id: "MINOR", label: "Minor rationalization", desc: "I adjusted slightly. I may have bent a rule but justified it.", color: "#f59e0b" },
+                  { id: "ALIBI", label: "Full alibi", desc: "My emotional brain decided first. My rational brain created a story to justify it.", color: "#ef4444" },
+                ].map(opt => {
+                  const isSelected = (activeTrade as any)?._alibi === opt.id || postTradeEmotion === opt.id + "_alibi";
+                  return (
+                    <TouchableOpacity
+                      key={opt.id} activeOpacity={0.8}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        if (opt.id === "ALIBI") {
+                          setDebriefNotes(prev => {
+                            const tag = "[Alibi detected] ";
+                            return prev.startsWith(tag) ? prev : tag + prev;
+                          });
+                        }
+                      }}
+                      style={{ padding: 12, borderRadius: 10, borderWidth: 1.5, borderColor: `${opt.color}40`, backgroundColor: `${opt.color}08`, flexDirection: "row", gap: 10, alignItems: "flex-start" }}
+                    >
+                      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: opt.color, marginTop: 3 }} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: opt.color, fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 2 }}>{opt.label}</Text>
+                        <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 }}>{opt.desc}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             {/* Post-trade emotional state — key Rande Howell data point */}
             <View>
               <SectionLabel text="Post-Trade Emotional State" />

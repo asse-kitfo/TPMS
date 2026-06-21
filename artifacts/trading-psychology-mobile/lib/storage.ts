@@ -115,6 +115,22 @@ export async function loadEmotionLog(sessionId: number): Promise<EmotionLogEntry
   return [];
 }
 
+export type TraderArchetype = "WARRIOR" | "RULER" | "CAREGIVER" | "SAGE";
+
+const ARCHETYPE_KEY = "apexterm:archetype";
+
+export async function loadArchetype(): Promise<TraderArchetype> {
+  try {
+    const s = await AsyncStorage.getItem(ARCHETYPE_KEY);
+    if (s) return s as TraderArchetype;
+  } catch {}
+  return "SAGE";
+}
+
+export async function saveArchetype(a: TraderArchetype): Promise<void> {
+  await AsyncStorage.setItem(ARCHETYPE_KEY, a);
+}
+
 export async function addEmotionEntry(sessionId: number, state: string): Promise<EmotionLogEntry[]> {
   const newEntry: EmotionLogEntry = {
     id: generateId(),

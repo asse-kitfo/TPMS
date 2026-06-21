@@ -13,30 +13,70 @@ import * as Haptics from "expo-haptics";
 import { Icon } from "@/components/Icon";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, Session } from "@/lib/api";
-import { loadMaxLosses, saveMaxLosses, addEmotionEntry, loadEmotionLog, EmotionLogEntry } from "@/lib/storage";
+import {
+  loadMaxLosses, saveMaxLosses, addEmotionEntry, loadEmotionLog,
+  EmotionLogEntry, TraderArchetype, loadArchetype, saveArchetype,
+} from "@/lib/storage";
 import { useColors } from "@/hooks/useColors";
 import { Card, Button, Badge, SectionLabel, webTop, webBottom } from "@/components/UI";
 import { HijackProtocol } from "@/components/HijackProtocol";
 import { useFocusEffect } from "expo-router";
 
+/* ── Psych States ─────────────────────────────────────────── */
 const PSYCH_STATES = [
   { key: "CALM", label: "Calm", color: "#22c55e", desc: "Clear head, no emotional pull", risk: 0 },
   { key: "FOCUSED", label: "Focused", color: "#22d3ee", desc: "Locked in, methodical", risk: 0 },
-  { key: "PRESSURE", label: "Pressure", color: "#f59e0b", desc: "Need to recover, feeling urgency", risk: 2 },
+  { key: "PRESSURE", label: "Pressure", color: "#f59e0b", desc: "Need to recover, urgency", risk: 2 },
   { key: "FEAR", label: "Fear", color: "#f97316", desc: "Hesitating, second-guessing", risk: 2 },
   { key: "OVERCONFIDENT", label: "Overconfident", color: "#ef4444", desc: "Too sure, ignoring risk", risk: 3 },
-  { key: "URGE", label: "Urge", color: "#ef4444", desc: "Strong pull to trade now — survival brain active", risk: 3 },
+  { key: "URGE", label: "Urge", color: "#ef4444", desc: "Strong pull to trade — survival brain active", risk: 3 },
 ];
 
 const RANDE_STATE_COACHING: Record<string, string> = {
-  CALM: "Trader state. The prefrontal cortex is online. Execute with precision.",
+  CALM: "Trader state. Prefrontal cortex online. Execute with precision.",
   FOCUSED: "Optimal. Clear observation, zero emotional interference.",
-  PRESSURE: "The survival brain is signalling threat. The need to recover distorts perception of risk.",
-  FEAR: "Amygdala activation detected. Fear of loss is more painful than loss itself to the emotional brain.",
+  PRESSURE: "Survival brain signalling threat. The need to recover distorts perception of risk.",
+  FEAR: "Amygdala activation. Fear of loss is more painful than loss itself to the emotional brain.",
   OVERCONFIDENT: "Dopamine surge. The reward circuit is rationalising edges that don't exist.",
   URGE: "Compulsive state. The urge to trade IS the signal to not trade.",
 };
 
+/* ── Archetypes — Rande Howell's Empowered Programs ─────── */
+const ARCHETYPES: Record<TraderArchetype, {
+  label: string; icon: string; color: string; core: string;
+  tagline: string; mantra: string; desc: string; shadow: string;
+}> = {
+  WARRIOR: {
+    label: "Warrior", icon: "zap", color: "#ef4444", core: "Courage",
+    tagline: "I face uncertainty without flinching.",
+    mantra: "I take valid setups with conviction. I do not freeze. I do not flinch.",
+    desc: "The Warrior faces risk with courage. It executes without hesitation at the moment of signal. It accepts losses as the cost of operating under uncertainty.",
+    shadow: "After losses, the Warrior can become reckless. Watch for aggression replacing strategy.",
+  },
+  RULER: {
+    label: "Ruler", icon: "sliders", color: "#f59e0b", core: "Discipline",
+    tagline: "I enforce my rules without negotiation.",
+    mantra: "The rules exist. I enforce them. The emotional brain does not vote.",
+    desc: "The Ruler governs by law, not impulse. Every rule exists for a reason. There are no exceptions during the session.",
+    shadow: "The Ruler can become rigid. When the market shifts, watch for rule-worship over context.",
+  },
+  CAREGIVER: {
+    label: "Caregiver", icon: "heart", color: "#22c55e", core: "Self-Compassion",
+    tagline: "I recover from losses without self-attack.",
+    mantra: "I am not my results. I treat myself with respect. I do not revenge trade.",
+    desc: "The Caregiver does not punish itself for losses. It recovers with speed and self-compassion, which prevents the revenge spiral.",
+    shadow: "The Caregiver can avoid hard truths. Watch for complacency masking as self-care.",
+  },
+  SAGE: {
+    label: "Sage", icon: "eye", color: "#6366f1", core: "Impartiality",
+    tagline: "I observe without attachment to outcome.",
+    mantra: "I observe. I assess. I act without attachment. The market is data.",
+    desc: "The Sage is the Observer Self — it watches the market and its own reactions with equal detachment. It sees clearly because it has no stake in being right.",
+    shadow: "The Sage can over-analyse. Watch for paralysis masking as patience.",
+  },
+};
+
+/* ── Helpers ──────────────────────────────────────────────── */
 function formatElapsed(startIso: string) {
   const elapsed = Math.floor((Date.now() - new Date(startIso).getTime()) / 1000);
   const h = Math.floor(elapsed / 3600);
@@ -45,11 +85,78 @@ function formatElapsed(startIso: string) {
   if (h > 0) return `${h}h ${m.toString().padStart(2, "0")}m`;
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
-
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+/* ── Archetype Selector ───────────────────────────────────── */
+function ArchetypeActivation({ value, onChange }: { value: TraderArchetype; onChange: (v: TraderArchetype) => void }) {
+  const colors = useColors();
+  const meta = ARCHETYPES[value];
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <View style={{ gap: 10 }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <SectionLabel text="Session Archetype" />
+        <TouchableOpacity onPress={() => setExpanded(e => !e)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>
+            {expanded ? "Less" : "What's this?"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {expanded && (
+        <View style={{ padding: 12, borderRadius: 10, backgroundColor: `${colors.primary}08`, borderWidth: 1, borderColor: `${colors.primary}20`, marginBottom: 4 }}>
+          <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>
+            Rande Howell — Awakening Empowered Programs
+          </Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 }}>
+            Your brain contains empowered emotional programs — the Warrior's courage, the Ruler's discipline, the Caregiver's self-compassion, the Sage's impartiality. Activating one before your session sets your trading identity intentionally, rather than letting the survival brain take over.
+          </Text>
+        </View>
+      )}
+
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        {(Object.entries(ARCHETYPES) as [TraderArchetype, typeof meta][]).map(([key, a]) => {
+          const isSelected = value === key;
+          return (
+            <TouchableOpacity
+              key={key} activeOpacity={0.8}
+              onPress={() => { onChange(key); Haptics.selectionAsync(); }}
+              style={{ flex: 1, alignItems: "center", gap: 6, padding: 10, borderRadius: 12, borderWidth: 1.5, borderColor: isSelected ? a.color : colors.border, backgroundColor: isSelected ? `${a.color}18` : colors.secondary }}
+            >
+              <Icon name={a.icon} size={18} color={isSelected ? a.color : colors.mutedForeground} />
+              <Text style={{ color: isSelected ? a.color : colors.mutedForeground, fontSize: 10, fontFamily: "Inter_600SemiBold", textAlign: "center" }}>{a.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <View style={{ padding: 12, borderRadius: 10, borderWidth: 1, borderColor: `${meta.color}30`, backgroundColor: `${meta.color}08`, gap: 6 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 }}>
+          <Icon name={meta.icon} size={14} color={meta.color} />
+          <Text style={{ color: meta.color, fontSize: 12, fontFamily: "Inter_700Bold", letterSpacing: 0.5 }}>
+            {meta.label} — {meta.core}
+          </Text>
+        </View>
+        <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 }}>
+          {meta.desc}
+        </Text>
+        <View style={{ marginTop: 4, padding: 8, borderRadius: 8, backgroundColor: `${meta.color}12` }}>
+          <Text style={{ color: meta.color, fontSize: 12, fontFamily: "Inter_500Medium", lineHeight: 18, fontStyle: "italic" }}>
+            "{meta.mantra}"
+          </Text>
+        </View>
+        <Text style={{ color: colors.mutedForeground + "80", fontSize: 10, fontFamily: "Inter_400Regular", lineHeight: 15, fontStyle: "italic" }}>
+          Shadow: {meta.shadow}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/* ── Psych State Selector ─────────────────────────────────── */
 function PsychSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const colors = useColors();
   return (
@@ -60,16 +167,8 @@ function PsychSelector({ value, onChange }: { value: string; onChange: (v: strin
           const isSelected = value === s.key;
           return (
             <TouchableOpacity
-              key={s.key}
-              onPress={() => onChange(s.key)}
-              activeOpacity={0.8}
-              style={{
-                marginRight: 8, marginBottom: 8,
-                paddingHorizontal: 12, paddingVertical: 8,
-                borderRadius: 10, borderWidth: 1.5,
-                borderColor: isSelected ? s.color : colors.border,
-                backgroundColor: isSelected ? `${s.color}18` : colors.secondary,
-              }}
+              key={s.key} onPress={() => onChange(s.key)} activeOpacity={0.8}
+              style={{ marginRight: 8, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: isSelected ? s.color : colors.border, backgroundColor: isSelected ? `${s.color}18` : colors.secondary }}
             >
               <Text style={{ color: isSelected ? s.color : colors.mutedForeground, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>
                 {s.label}
@@ -82,26 +181,18 @@ function PsychSelector({ value, onChange }: { value: string; onChange: (v: strin
   );
 }
 
+/* ── Emotion Timeline ─────────────────────────────────────── */
 function EmotionTimeline({ entries }: { entries: EmotionLogEntry[] }) {
   const colors = useColors();
   if (entries.length === 0) return null;
-  const recent = entries.slice(0, 6);
-
   return (
     <View style={{ gap: 6 }}>
       <SectionLabel text="State Log" />
-      {recent.map((entry, i) => {
+      {entries.slice(0, 6).map((entry, i) => {
         const state = PSYCH_STATES.find(s => s.key === entry.state);
         const isLatest = i === 0;
         return (
-          <View key={entry.id} style={{
-            flexDirection: "row", alignItems: "center", gap: 10,
-            paddingVertical: 6, paddingHorizontal: 10,
-            borderRadius: 8,
-            backgroundColor: isLatest ? `${state?.color ?? colors.primary}10` : "transparent",
-            borderWidth: isLatest ? 1 : 0,
-            borderColor: `${state?.color ?? colors.primary}30`,
-          }}>
+          <View key={entry.id} style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: isLatest ? `${state?.color ?? colors.primary}10` : "transparent", borderWidth: isLatest ? 1 : 0, borderColor: `${state?.color ?? colors.primary}30` }}>
             <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: state?.color ?? colors.mutedForeground }} />
             <Text style={{ color: state?.color ?? colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold", width: 90 }}>
               {state?.label ?? entry.state}
@@ -109,11 +200,7 @@ function EmotionTimeline({ entries }: { entries: EmotionLogEntry[] }) {
             <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", flex: 1 }}>
               {formatTime(entry.timestamp)}
             </Text>
-            {isLatest && (
-              <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: `${state?.color ?? colors.primary}20` }}>
-                <Text style={{ color: state?.color ?? colors.primary, fontSize: 9, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5 }}>NOW</Text>
-              </View>
-            )}
+            {isLatest && <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: `${state?.color ?? colors.primary}20` }}><Text style={{ color: state?.color ?? colors.primary, fontSize: 9, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5 }}>NOW</Text></View>}
           </View>
         );
       })}
@@ -121,11 +208,10 @@ function EmotionTimeline({ entries }: { entries: EmotionLogEntry[] }) {
   );
 }
 
-function SessionActive({
-  session, maxLosses, onEnd, onSOS, emotionLog,
-  currentState, onLogState,
-}: {
-  session: Session; maxLosses: number; onEnd: () => void; onSOS: () => void;
+/* ── Session Active Card ──────────────────────────────────── */
+function SessionActive({ session, maxLosses, archetype, onEnd, onSOS, emotionLog, currentState, onLogState }: {
+  session: Session; maxLosses: number; archetype: TraderArchetype;
+  onEnd: () => void; onSOS: () => void;
   emotionLog: EmotionLogEntry[]; currentState: string; onLogState: () => void;
 }) {
   const colors = useColors();
@@ -137,6 +223,7 @@ function SessionActive({
   const state = PSYCH_STATES.find(s => s.key === currentState);
   const isHighRisk = (state?.risk ?? 0) >= 2;
   const dangerZone = (hitLimit || nearLimit) && isHighRisk;
+  const arc = ARCHETYPES[archetype];
 
   useEffect(() => {
     const interval = setInterval(() => setElapsed(formatElapsed(session.createdAt)), 1000);
@@ -144,21 +231,20 @@ function SessionActive({
   }, [session.createdAt]);
 
   return (
-    <View style={{ gap: 12 }}>
+    <View style={{ gap: 10 }}>
       {hitLimit && (
         <View style={[styles.alertBanner, { backgroundColor: `${colors.destructive}18`, borderColor: colors.destructive }]}>
           <Icon name="alert-octagon" size={16} color={colors.destructive} />
           <Text style={{ color: colors.destructive, fontSize: 13, fontFamily: "Inter_600SemiBold", flex: 1 }}>
-            CIRCUIT BREAKER — Loss limit hit. End session now.
+            CIRCUIT BREAKER — Loss limit reached. End session now.
           </Text>
         </View>
       )}
-
       {dangerZone && !hitLimit && (
-        <View style={[styles.alertBanner, { backgroundColor: "#f97316" + "18", borderColor: "#f97316" }]}>
+        <View style={[styles.alertBanner, { backgroundColor: "#f9731618", borderColor: "#f97316" }]}>
           <Icon name="alert-triangle" size={16} color="#f97316" />
           <Text style={{ color: "#f97316", fontSize: 13, fontFamily: "Inter_600SemiBold", flex: 1 }}>
-            Danger Zone — {state?.label} state + {session.lossCount} loss{session.lossCount !== 1 ? "es" : ""}. Survival brain risk is elevated.
+            Danger Zone — {state?.label} + {session.lossCount} loss{session.lossCount !== 1 ? "es" : ""}. Invoke the {arc.label}'s mantra.
           </Text>
         </View>
       )}
@@ -175,47 +261,43 @@ function SessionActive({
           </View>
         </View>
 
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <View style={[styles.statBox, { backgroundColor: colors.secondary, flex: 1 }]}>
-            <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_500Medium", textTransform: "uppercase", letterSpacing: 1 }}>Losses</Text>
-            <Text style={{ color: lossColor, fontSize: 22, fontFamily: "Inter_700Bold" }}>{session.lossCount}</Text>
-          </View>
-          <View style={[styles.statBox, { backgroundColor: colors.secondary, flex: 1 }]}>
-            <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_500Medium", textTransform: "uppercase", letterSpacing: 1 }}>Breaks</Text>
-            <Text style={{ color: session.ruleBreaks > 0 ? colors.warning : colors.foreground, fontSize: 22, fontFamily: "Inter_700Bold" }}>{session.ruleBreaks}</Text>
-          </View>
-          <View style={[styles.statBox, { backgroundColor: colors.secondary, flex: 1 }]}>
-            <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_500Medium", textTransform: "uppercase", letterSpacing: 1 }}>Mode</Text>
-            <Text style={{ color: colors.foreground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>{session.mode}</Text>
-          </View>
+        {/* Archetype chip */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 8, backgroundColor: `${arc.color}10`, borderWidth: 1, borderColor: `${arc.color}25` }}>
+          <Icon name={arc.icon} size={13} color={arc.color} />
+          <Text style={{ color: arc.color, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{arc.label}</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", flex: 1 }} numberOfLines={1}>
+            {arc.tagline}
+          </Text>
         </View>
 
-        {/* State check-in row */}
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          {[
+            { label: "Losses", value: String(session.lossCount), color: lossColor },
+            { label: "Breaks", value: String(session.ruleBreaks), color: session.ruleBreaks > 0 ? colors.warning : colors.foreground },
+            { label: "Mode", value: session.mode, color: colors.foreground, small: true },
+          ].map(item => (
+            <View key={item.label} style={[styles.statBox, { backgroundColor: colors.secondary, flex: 1 }]}>
+              <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_500Medium", textTransform: "uppercase", letterSpacing: 1 }}>{item.label}</Text>
+              <Text style={{ color: item.color, fontSize: item.small ? 11 : 22, fontFamily: "Inter_700Bold" }}>{item.value}</Text>
+            </View>
+          ))}
+        </View>
+
         <View style={{ flexDirection: "row", gap: 8 }}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onLogState(); }}
-            style={{
-              flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-              paddingVertical: 10, borderRadius: 10, borderWidth: 1.5,
-              borderColor: `${state?.color ?? colors.primary}50`,
-              backgroundColor: `${state?.color ?? colors.primary}12`,
-            }}
+            style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: `${state?.color ?? colors.primary}50`, backgroundColor: `${state?.color ?? colors.primary}12` }}
           >
             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: state?.color ?? colors.primary }} />
             <Text style={{ color: state?.color ?? colors.primary, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>
               Log: {state?.label ?? currentState}
             </Text>
           </TouchableOpacity>
-
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); onSOS(); }}
-            style={{
-              paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5,
-              borderColor: "#ef444450", backgroundColor: "#ef444415",
-              flexDirection: "row", alignItems: "center", gap: 6,
-            }}
+            style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: "#ef444450", backgroundColor: "#ef444415", flexDirection: "row", alignItems: "center", gap: 6 }}
           >
             <Icon name="alert-octagon" size={14} color="#ef4444" />
             <Text style={{ color: "#ef4444", fontSize: 13, fontFamily: "Inter_700Bold" }}>SOS</Text>
@@ -228,6 +310,7 @@ function SessionActive({
   );
 }
 
+/* ── Breathing Widget ─────────────────────────────────────── */
 function BreathingWidget() {
   const colors = useColors();
   const [phase, setPhase] = useState<"IDLE" | "INHALE" | "HOLD" | "EXHALE">("IDLE");
@@ -240,19 +323,13 @@ function BreathingWidget() {
       Animated.timing(scaleAnim, { toValue: 0.75, duration: 600, useNativeDriver: true }).start();
       return;
     }
-    const PHASES = [
-      { phase: "INHALE" as const, duration: 4 },
-      { phase: "HOLD" as const, duration: 7 },
-      { phase: "EXHALE" as const, duration: 8 },
-    ];
+    const PHASES = [{ phase: "INHALE" as const, duration: 4 }, { phase: "HOLD" as const, duration: 7 }, { phase: "EXHALE" as const, duration: 8 }];
     let phaseIdx = PHASES.findIndex(p => p.phase === phase);
     if (phaseIdx < 0) phaseIdx = 0;
     let remaining = PHASES[phaseIdx].duration;
     setTimer(remaining);
-
     if (phase === "INHALE") Animated.timing(scaleAnim, { toValue: 1, duration: 4000, useNativeDriver: true }).start();
     else if (phase === "EXHALE") Animated.timing(scaleAnim, { toValue: 0.65, duration: 8000, useNativeDriver: true }).start();
-
     const interval = setInterval(() => {
       remaining -= 1;
       setTimer(remaining);
@@ -268,14 +345,14 @@ function BreathingWidget() {
   }, [phase]);
 
   const phaseLabel = phase === "INHALE" ? "Breathe In" : phase === "HOLD" ? "Hold" : phase === "EXHALE" ? "Breathe Out" : "";
-  const ringColor = phase === "INHALE" ? "#3b82f6" : phase === "HOLD" ? colors.primary : phase === "EXHALE" ? "#22c55e" : colors.border;
+  const ringColor = phase === "INHALE" ? "#3b82f6" : phase === "HOLD" ? "#22d3ee" : phase === "EXHALE" ? "#22c55e" : colors.border;
 
   return (
-    <View style={{ gap: 12 }}>
-      <SectionLabel text="4-7-8 Breathing Reset" />
+    <View style={{ gap: 10 }}>
+      <SectionLabel text="4-7-8 Breathing — Diaphragmatic Reset" />
       <View style={{ padding: 14, borderRadius: 14, borderWidth: 1, borderColor: "#3b82f620", backgroundColor: "#3b82f608" }}>
         <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18, marginBottom: 12 }}>
-          Activates the parasympathetic nervous system. Lowers cortisol. Re-engages the prefrontal cortex. Use before every session and when you feel activated.
+          Diaphragmatic breathing under trading stress prevents the amygdala hijack. It lowers cortisol and re-engages the prefrontal cortex. Practice this before every session.
         </Text>
         {phase === "IDLE" ? (
           <TouchableOpacity
@@ -286,16 +363,12 @@ function BreathingWidget() {
             <Text style={{ color: "#3b82f6", fontSize: 14, fontFamily: "Inter_600SemiBold" }}>Begin Breathing Reset</Text>
           </TouchableOpacity>
         ) : (
-          <View style={{ alignItems: "center", gap: 16 }}>
-            <Animated.View style={{
-              width: 100, height: 100, borderRadius: 50,
-              borderWidth: 3, borderColor: ringColor, backgroundColor: `${ringColor}18`,
-              alignItems: "center", justifyContent: "center", transform: [{ scale: scaleAnim }],
-            }}>
+          <View style={{ alignItems: "center", gap: 14 }}>
+            <Animated.View style={{ width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: ringColor, backgroundColor: `${ringColor}18`, alignItems: "center", justifyContent: "center", transform: [{ scale: scaleAnim }] }}>
               <Text style={{ color: ringColor, fontSize: 28, fontFamily: "Inter_700Bold" }}>{timer}</Text>
               <Text style={{ color: ringColor, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5 }}>{phaseLabel}</Text>
             </Animated.View>
-            <View style={{ flexDirection: "row", gap: 12 }}>
+            <View style={{ flexDirection: "row", gap: 10 }}>
               {(["INHALE", "HOLD", "EXHALE"] as const).map(p => (
                 <View key={p} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: phase === p ? `${ringColor}60` : "transparent", backgroundColor: phase === p ? `${ringColor}15` : "transparent" }}>
                   <Text style={{ color: phase === p ? ringColor : colors.mutedForeground + "60", fontSize: 10, fontFamily: "Inter_600SemiBold" }}>
@@ -306,7 +379,7 @@ function BreathingWidget() {
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
               <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>
-                {cycles} {cycles === 1 ? "cycle" : "cycles"}{cycles >= 3 ? " — cortex re-engaged" : ""}
+                {cycles} cycle{cycles !== 1 ? "s" : ""}{cycles >= 3 ? " — cortex re-engaged" : ""}
               </Text>
               <TouchableOpacity onPress={() => { setPhase("IDLE"); setCycles(0); }}>
                 <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_500Medium" }}>Stop</Text>
@@ -319,6 +392,7 @@ function BreathingWidget() {
   );
 }
 
+/* ── Stats Row ───────────────────────────────────────────── */
 function StatsRow() {
   const colors = useColors();
   const { data: stats } = useQuery({ queryKey: ["stats-summary"], queryFn: api.getStatsSummary });
@@ -326,13 +400,13 @@ function StatsRow() {
   if (!stats) return null;
   return (
     <View style={{ gap: 8 }}>
-      <SectionLabel text="All-time stats" />
+      <SectionLabel text="All-time performance" />
       <View style={{ flexDirection: "row", gap: 8 }}>
         {[
           { label: "Trades", value: String(stats.totalTrades), color: colors.foreground },
           { label: "Win Rate", value: `${(stats.winRate * 100).toFixed(0)}%`, color: colors.success },
           { label: "Streak", value: String(streak?.currentStreak ?? 0), color: colors.primary },
-          { label: "Plan %", value: `${(stats.planFollowRate * 100).toFixed(0)}%`, color: colors.primary },
+          { label: "Plan %", value: `${(stats.planFollowRate * 100).toFixed(0)}%`, color: "#22d3ee" },
         ].map(item => (
           <View key={item.label} style={[styles.statBox, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, flex: 1 }]}>
             <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_500Medium", textTransform: "uppercase", letterSpacing: 1 }}>{item.label}</Text>
@@ -344,18 +418,20 @@ function StatsRow() {
   );
 }
 
+/* ── Hub Screen ──────────────────────────────────────────── */
 export default function HubScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
+
   const [maxLosses, setMaxLosses] = useState(2);
   const [psychState, setPsychState] = useState("CALM");
-  const [confirmEnd, setConfirmEnd] = useState(false);
+  const [archetype, setArchetype] = useState<TraderArchetype>("SAGE");
   const [emotionLog, setEmotionLog] = useState<EmotionLogEntry[]>([]);
   const [hijackVisible, setHijackVisible] = useState(false);
   const [hijackReason, setHijackReason] = useState("");
 
-  const { data: session, isLoading, refetch } = useQuery<Session | null>({
+  const { data: session } = useQuery<Session | null>({
     queryKey: ["session"],
     queryFn: async () => {
       try { return await api.getCurrentSession(); } catch { return null; }
@@ -363,7 +439,10 @@ export default function HubScreen() {
     refetchInterval: 10000,
   });
 
-  useEffect(() => { loadMaxLosses().then(setMaxLosses); }, []);
+  useEffect(() => {
+    loadMaxLosses().then(setMaxLosses);
+    loadArchetype().then(setArchetype);
+  }, []);
 
   useFocusEffect(useCallback(() => {
     if (session?.id) loadEmotionLog(session.id).then(setEmotionLog);
@@ -388,20 +467,9 @@ export default function HubScreen() {
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       qc.invalidateQueries({ queryKey: ["session"] });
-      setConfirmEnd(false);
       setEmotionLog([]);
     },
   });
-
-  const handleStart = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    startMutation.mutate();
-  };
-
-  const handleEnd = () => {
-    if (!confirmEnd) { setConfirmEnd(true); setTimeout(() => setConfirmEnd(false), 4000); return; }
-    endMutation.mutate();
-  };
 
   const handleLogState = async () => {
     if (!session) return;
@@ -412,18 +480,20 @@ export default function HubScreen() {
 
   const handleSOS = () => {
     const state = PSYCH_STATES.find(s => s.key === psychState);
-    const lossContext = session ? `${session.lossCount} loss${session.lossCount !== 1 ? "es" : ""} in session` : "";
-    setHijackReason(`${state?.label ?? psychState} state${lossContext ? ` — ${lossContext}` : ""}.`);
+    const arc = ARCHETYPES[archetype];
+    const lossCtx = session ? ` · ${session.lossCount} loss${session.lossCount !== 1 ? "es" : ""} this session` : "";
+    setHijackReason(`${state?.label ?? psychState} state${lossCtx}. Active archetype: ${arc.label}.`);
     setHijackVisible(true);
   };
 
   const handleHijackClose = (decision: string | null) => {
     setHijackVisible(false);
-    if (decision === "END_SESSION" && session) {
-      endMutation.mutate();
-    } else if (decision === "STEP_AWAY") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    }
+    if (decision === "END_SESSION" && session) endMutation.mutate();
+  };
+
+  const handleArchetypeChange = (a: TraderArchetype) => {
+    setArchetype(a);
+    saveArchetype(a);
   };
 
   const topPad = Platform.OS === "web" ? webTop : insets.top;
@@ -436,9 +506,9 @@ export default function HubScreen() {
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.background }}
         contentContainerStyle={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: bottomPad, gap: 20 }}
-        refreshControl={undefined}
         showsVerticalScrollIndicator={false}
       >
+        {/* Header */}
         <View>
           <Text style={{ color: colors.primary, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 2, textTransform: "uppercase" }}>
             APEX<Text style={{ color: colors.foreground }}>TERM</Text>
@@ -447,19 +517,22 @@ export default function HubScreen() {
             Psychology Hub
           </Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular" }}>
-            Check in before the market opens
+            Prepare your mind before the market opens
           </Text>
         </View>
 
-        {/* Psych state selector */}
+        {/* Archetype activation */}
+        <Card>
+          <ArchetypeActivation value={archetype} onChange={handleArchetypeChange} />
+        </Card>
+
+        {/* Psych state */}
         <Card>
           <PsychSelector value={psychState} onChange={setPsychState} />
           {selectedState && (
             <>
               <View style={[styles.stateDesc, { backgroundColor: `${selectedState.color}10`, borderColor: `${selectedState.color}30` }]}>
-                <Text style={{ color: selectedState.color, fontSize: 12, fontFamily: "Inter_500Medium" }}>
-                  {selectedState.desc}
-                </Text>
+                <Text style={{ color: selectedState.color, fontSize: 12, fontFamily: "Inter_500Medium" }}>{selectedState.desc}</Text>
               </View>
               {selectedState.risk >= 2 && (
                 <View style={{ marginTop: 8, padding: 10, borderRadius: 8, backgroundColor: `${selectedState.color}08`, borderWidth: 1, borderColor: `${selectedState.color}20` }}>
@@ -472,14 +545,15 @@ export default function HubScreen() {
           )}
         </Card>
 
-        {/* Session panel */}
+        {/* Session */}
         <View>
           <SectionLabel text="Trading Session" />
           {isActive ? (
             <SessionActive
               session={session}
               maxLosses={maxLosses}
-              onEnd={handleEnd}
+              archetype={archetype}
+              onEnd={() => endMutation.mutate()}
               onSOS={handleSOS}
               emotionLog={emotionLog}
               currentState={psychState}
@@ -490,15 +564,14 @@ export default function HubScreen() {
               <View>
                 <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_600SemiBold" }}>No active session</Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 }}>
-                  Set your max losses before starting. This decision is made now, while calm — not mid-session.
+                  Commit to your loss limit before starting. This decision is made now — while calm — not in the heat of the session.
                 </Text>
               </View>
               <View>
                 <SectionLabel text="Max losses today" />
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   {[1, 2, 3].map(n => (
-                    <TouchableOpacity
-                      key={n} onPress={() => { setMaxLosses(n); saveMaxLosses(n); }} activeOpacity={0.8}
+                    <TouchableOpacity key={n} onPress={() => { setMaxLosses(n); saveMaxLosses(n); }} activeOpacity={0.8}
                       style={{ flex: 1, height: 48, borderRadius: 10, borderWidth: 2, borderColor: maxLosses === n ? colors.primary : colors.border, backgroundColor: maxLosses === n ? `${colors.primary}18` : colors.secondary, alignItems: "center", justifyContent: "center" }}
                     >
                       <Text style={{ color: maxLosses === n ? colors.primary : colors.mutedForeground, fontSize: 20, fontFamily: "Inter_700Bold" }}>{n}</Text>
@@ -506,36 +579,24 @@ export default function HubScreen() {
                   ))}
                 </View>
               </View>
-              {confirmEnd && (
-                <View style={[styles.alertBanner, { backgroundColor: `${colors.warning}18`, borderColor: colors.warning }]}>
-                  <Icon name="alert-triangle" size={14} color={colors.warning} />
-                  <Text style={{ color: colors.warning, fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 }}>No session active. Start a new one below.</Text>
-                </View>
-              )}
-              <Button label="Start Session" onPress={handleStart} loading={startMutation.isPending} icon={<Icon name="play" size={14} color={colors.primaryForeground} />} fullWidth />
+              <Button label="Start Session" onPress={() => startMutation.mutate()} loading={startMutation.isPending} icon={<Icon name="play" size={14} color={colors.primaryForeground} />} fullWidth />
             </Card>
           )}
         </View>
 
-        {/* Emotion timeline (session only) */}
+        {/* Emotion timeline */}
         {isActive && emotionLog.length > 0 && (
-          <Card>
-            <EmotionTimeline entries={emotionLog} />
-          </Card>
+          <Card><EmotionTimeline entries={emotionLog} /></Card>
         )}
 
-        {/* Breathing reset */}
+        {/* Breathing */}
         <BreathingWidget />
 
         {/* Stats */}
         <StatsRow />
       </ScrollView>
 
-      <HijackProtocol
-        visible={hijackVisible}
-        onClose={handleHijackClose}
-        triggerReason={hijackReason}
-      />
+      <HijackProtocol visible={hijackVisible} onClose={handleHijackClose} triggerReason={hijackReason} />
     </>
   );
 }

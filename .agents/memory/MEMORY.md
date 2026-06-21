@@ -1,0 +1,1 @@
+- [Rande Howell framework integration](rande-howell-framework.md) — archetypes/voices/alibi system, app structure, key patterns for future additions
