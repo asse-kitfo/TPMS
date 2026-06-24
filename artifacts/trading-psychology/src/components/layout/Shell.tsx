@@ -8,6 +8,7 @@ import {
   Terminal,
   BookMarked,
   MessageSquare,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,7 @@ export function Shell({ children }: ShellProps) {
     { href: "/journal", label: "Debrief Log", icon: BookOpen, sub: "Post-trade records" },
     { href: "/analytics", label: "My Patterns", icon: BarChart2, sub: "Behavioral insights" },
     { href: "/rules", label: "My Rules", icon: BookMarked, sub: "Trading rules & review" },
+    { href: "/replay", label: "Session Replay", icon: History, sub: "Full session timeline" },
   ];
 
   return (
