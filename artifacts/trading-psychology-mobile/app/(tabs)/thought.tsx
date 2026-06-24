@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -7,10 +7,13 @@ import {
   TouchableOpacity,
   TextInput,
   Platform,
+  Modal,
+  Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { Icon } from "@/components/Icon";
+import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColors } from "@/hooks/useColors";
 import { Button, Card, SectionLabel, webTop, webBottom } from "@/components/UI";
@@ -150,6 +153,241 @@ const QUICK_THOUGHTS = [
   "I already know this will work.",
 ];
 
+/* ─── Micro Mode (3-step in-session modal) ──────────────────── */
+const MICRO_EMOTIONS = [
+  { id: "FEAR", label: "Fear", color: "#f97316" },
+  { id: "URGE", label: "Urge", color: "#f59e0b" },
+  { id: "ANGER", label: "Anger", color: "#ef4444" },
+  { id: "OVERCONFIDENCE", label: "Overconfident", color: "#a855f7" },
+  { id: "DESPERATION", label: "Desperation", color: "#f43f5e" },
+  { id: "BOREDOM", label: "Boredom", color: "#3b82f6" },
+  { id: "GREED", label: "Greed", color: "#eab308" },
+];
+
+const MICRO_VOICES = [
+  { id: "INNER_CRITIC", label: "Inner Critic", color: "#ef4444", desc: "Attacking / shaming self" },
+  { id: "ORPHAN", label: "Orphan", color: "#f97316", desc: "Fearful / helpless" },
+  { id: "SURVIVAL_BRAIN", label: "Survival Brain", color: "#f59e0b", desc: "Must control / recover" },
+  { id: "ENTITLED_EGO", label: "Entitled Ego", color: "#a855f7", desc: "Market owes me / I deserve" },
+];
+
+const MICRO_REFRAMES: Record<string, string[]> = {
+  FEAR: [
+    "The stop exists to protect me. Loss is already managed.",
+    "Uncertainty is the price of entry — not a threat.",
+    "I'm observing, not predicting. Fear is a false alarm.",
+  ],
+  URGE: [
+    "The urge to trade IS the signal to not trade.",
+    "No trade is better than a bad trade. The market will still be here.",
+    "This impulse has no edge. Edge comes from setup, not emotion.",
+  ],
+  ANGER: [
+    "The market is not punishing me. It is neutral data.",
+    "My anger is a biological reaction, not market information.",
+    "Revenge trading has negative expectancy. I trade the system.",
+  ],
+  OVERCONFIDENCE: [
+    "No one knows. I have a probability, not a guarantee.",
+    "My edge exists over 100 trades — not this one.",
+    "Certainty is not available. Respect the risk.",
+  ],
+  DESPERATION: [
+    "The need to recover is the enemy of good trading.",
+    "This trade will not fix how I feel — it will amplify it.",
+    "Professional recovery is gradual. One trade cannot fix everything.",
+  ],
+  BOREDOM: [
+    "No setup is a valid position. Standing aside IS a trade.",
+    "Forcing a trade from boredom has negative expectancy.",
+    "The best traders miss most moves. Selectivity is the edge.",
+  ],
+  GREED: [
+    "Greed is the dopamine circuit rationalising risk that doesn't exist.",
+    "I already have a plan. I execute the plan.",
+    "Extending a winner from greed erases discipline. Bank it.",
+  ],
+};
+
+const MICRO_STORAGE_KEY = "cbt-micro-records-mobile";
+
+interface MicroRecord {
+  id: string;
+  createdAt: string;
+  emotion: string;
+  voice: string;
+  reframe: string;
+}
+
+interface MicroModeProps {
+  visible: boolean;
+  onClose: () => void;
+}
+
+function MicroMode({ visible, onClose }: MicroModeProps) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [emotion, setEmotion] = useState("");
+  const [voice, setVoice] = useState("");
+  const [reframeIdx, setReframeIdx] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const topPad = Platform.OS === "web" ? 60 : insets.top + 16;
+
+  useEffect(() => {
+    if (visible) {
+      setStep(1); setEmotion(""); setVoice(""); setReframeIdx(0);
+      Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+    }
+  }, [visible]);
+
+  const reframeOptions = emotion ? (MICRO_REFRAMES[emotion] ?? MICRO_REFRAMES["FEAR"]) : [];
+
+  const save = async () => {
+    const record: MicroRecord = {
+      id: `micro-${Date.now()}`, createdAt: new Date().toISOString(),
+      emotion, voice, reframe: reframeOptions[reframeIdx] ?? "",
+    };
+    try {
+      const raw = await AsyncStorage.getItem(MICRO_STORAGE_KEY);
+      const existing: MicroRecord[] = raw ? JSON.parse(raw) : [];
+      await AsyncStorage.setItem(MICRO_STORAGE_KEY, JSON.stringify([record, ...existing].slice(0, 30)));
+    } catch {}
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onClose();
+  };
+
+  const stepLabels = ["Name the emotion", "Identify the voice", "Choose a reframe"];
+  const progressColors = ["#f59e0b", "#ef4444", "#22c55e"];
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <Animated.View style={{ flex: 1, backgroundColor: "#060608", opacity: fadeAnim }}>
+        <View style={{ paddingTop: topPad, paddingHorizontal: 20, flex: 1 }}>
+          {/* Header */}
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <View style={{ gap: 4 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Feather name="zap" size={14} color="#f59e0b" />
+                <Text style={{ color: "#f59e0b", fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 2, textTransform: "uppercase" }}>
+                  Micro Mode
+                </Text>
+              </View>
+              <Text style={{ color: "#fff", fontSize: 18, fontFamily: "Inter_700Bold" }}>{stepLabels[step - 1]}</Text>
+              <Text style={{ color: "#444", fontSize: 12, fontFamily: "Inter_400Regular" }}>Step {step} of 3 — no typing needed</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <Feather name="x" size={20} color="#555" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Progress bar */}
+          <View style={{ flexDirection: "row", gap: 6, marginBottom: 28 }}>
+            {[1, 2, 3].map(i => (
+              <View key={i} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: i <= step ? progressColors[i - 1] : "#1a1a1a" }} />
+            ))}
+          </View>
+
+          {/* STEP 1: Emotion */}
+          {step === 1 && (
+            <View style={{ gap: 10 }}>
+              {MICRO_EMOTIONS.map(e => (
+                <TouchableOpacity
+                  key={e.id} activeOpacity={0.8}
+                  onPress={() => { setEmotion(e.id); Haptics.selectionAsync(); setStep(2); }}
+                  style={{
+                    padding: 16, borderRadius: 14, borderWidth: 1.5,
+                    borderColor: `${e.color}40`, backgroundColor: `${e.color}08`,
+                    flexDirection: "row", alignItems: "center", gap: 12,
+                  }}
+                >
+                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: e.color }} />
+                  <Text style={{ color: e.color, fontSize: 16, fontFamily: "Inter_600SemiBold", flex: 1 }}>{e.label}</Text>
+                  <Feather name="chevron-right" size={14} color={`${e.color}80`} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* STEP 2: Voice */}
+          {step === 2 && (
+            <View style={{ gap: 10 }}>
+              {MICRO_VOICES.map(v => (
+                <TouchableOpacity
+                  key={v.id} activeOpacity={0.8}
+                  onPress={() => { setVoice(v.id); Haptics.selectionAsync(); setStep(3); }}
+                  style={{
+                    padding: 16, borderRadius: 14, borderWidth: 1.5,
+                    borderColor: `${v.color}40`, backgroundColor: `${v.color}08`,
+                    flexDirection: "row", alignItems: "flex-start", gap: 12,
+                  }}
+                >
+                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: v.color, marginTop: 5 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: v.color, fontSize: 15, fontFamily: "Inter_600SemiBold" }}>{v.label}</Text>
+                    <Text style={{ color: "#555", fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 }}>{v.desc}</Text>
+                  </View>
+                  <Feather name="chevron-right" size={14} color={`${v.color}80`} style={{ marginTop: 3 }} />
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity onPress={() => setStep(1)} style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4, alignSelf: "center" }}>
+                <Feather name="arrow-left" size={12} color="#444" />
+                <Text style={{ color: "#444", fontSize: 12, fontFamily: "Inter_500Medium" }}>Back</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* STEP 3: Reframe */}
+          {step === 3 && (
+            <View style={{ gap: 12 }}>
+              <Text style={{ color: "#555", fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20 }}>
+                Tap the reframe that lands. Read it twice. Let it replace the automatic thought.
+              </Text>
+              {reframeOptions.map((r, i) => {
+                const isSelected = reframeIdx === i;
+                return (
+                  <TouchableOpacity
+                    key={i} activeOpacity={0.8}
+                    onPress={() => { setReframeIdx(i); Haptics.selectionAsync(); }}
+                    style={{
+                      padding: 18, borderRadius: 14, borderWidth: 1.5,
+                      borderColor: isSelected ? "#22c55e" : "#1a1a1a",
+                      backgroundColor: isSelected ? "#22c55e0a" : "#0a0a0a",
+                    }}
+                  >
+                    <Text style={{ color: isSelected ? "#22c55e" : "#777", fontSize: 15, fontFamily: isSelected ? "Inter_600SemiBold" : "Inter_400Regular", lineHeight: 22 }}>
+                      "{r}"
+                    </Text>
+                    {isSelected && (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 8 }}>
+                        <Feather name="check-circle" size={12} color="#22c55e" />
+                        <Text style={{ color: "#22c55e", fontSize: 11, fontFamily: "Inter_600SemiBold" }}>Selected</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
+                <TouchableOpacity onPress={() => setStep(2)} style={{ flexDirection: "row", alignItems: "center", gap: 6, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: "#1a1a1a", flex: 1, justifyContent: "center" }}>
+                  <Feather name="arrow-left" size={12} color="#444" />
+                  <Text style={{ color: "#444", fontSize: 13, fontFamily: "Inter_500Medium" }}>Back</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.8} onPress={save}
+                  style={{ flex: 2, padding: 14, borderRadius: 10, backgroundColor: "#22c55e", alignItems: "center", justifyContent: "center" }}
+                >
+                  <Text style={{ color: "#000", fontSize: 14, fontFamily: "Inter_700Bold" }}>Lock In & Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+      </Animated.View>
+    </Modal>
+  );
+}
+
 /* ─── Helpers ───────────────────────────────────────────────── */
 function generateId() {
   return `tr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -197,6 +435,7 @@ export default function ThoughtScreen() {
   const [action, setAction] = useState("");
   const [records, setRecords] = useState<ThoughtRecord[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [microVisible, setMicroVisible] = useState(false);
 
   useEffect(() => { loadRecords().then(setRecords); }, []);
 
@@ -605,12 +844,35 @@ export default function ThoughtScreen() {
         </Text>
       </View>
 
-      <Button
-        label="Start Thought Record"
-        onPress={() => { setIsActive(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
-        icon={<Icon name="zap" size={14} color={colors.primaryForeground} />}
-        fullWidth
-      />
+      {/* Micro Mode — fast 3-tap in-session interrupt */}
+      <View style={{ gap: 8 }}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => { setMicroVisible(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); }}
+          style={{ padding: 16, borderRadius: 14, borderWidth: 1.5, borderColor: "#f59e0b40", backgroundColor: "#f59e0b08", flexDirection: "row", alignItems: "center", gap: 12 }}
+        >
+          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: "#f59e0b15", borderWidth: 1.5, borderColor: "#f59e0b40", alignItems: "center", justifyContent: "center" }}>
+            <Feather name="zap" size={16} color="#f59e0b" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: "#f59e0b", fontSize: 15, fontFamily: "Inter_700Bold" }}>Micro Mode</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 }}>
+              3 taps · 15 seconds · emotion → voice → reframe
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={16} color="#f59e0b60" />
+        </TouchableOpacity>
+
+        <Button
+          label="Start Full Thought Record"
+          onPress={() => { setIsActive(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
+          icon={<Icon name="zap" size={14} color={colors.primaryForeground} />}
+          variant="secondary"
+          fullWidth
+        />
+      </View>
+
+      <MicroMode visible={microVisible} onClose={() => setMicroVisible(false)} />
 
       {records.length > 0 && (
         <View style={{ gap: 10 }}>

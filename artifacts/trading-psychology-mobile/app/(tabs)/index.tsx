@@ -19,7 +19,7 @@ import {
 } from "@/lib/storage";
 import { useColors } from "@/hooks/useColors";
 import { Card, Button, Badge, SectionLabel, webTop, webBottom } from "@/components/UI";
-import { HijackProtocol } from "@/components/HijackProtocol";
+import { SOSProtocol } from "@/components/SOSProtocol";
 import { useFocusEffect } from "expo-router";
 
 /* ── Psych States ─────────────────────────────────────────── */
@@ -596,7 +596,7 @@ export default function HubScreen() {
         <StatsRow />
       </ScrollView>
 
-      <HijackProtocol visible={hijackVisible} onClose={handleHijackClose} triggerReason={hijackReason} />
+      <SOSProtocol visible={hijackVisible} onClose={() => handleHijackClose(null)} triggerReason={hijackReason} />
     </>
   );
 }
