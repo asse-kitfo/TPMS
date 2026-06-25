@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@workspace/api-zod";
+import { useListSessions } from "@workspace/api-client-react";
 import { History, ShieldCheck, TrendingUp, TrendingDown, AlertTriangle, Clock, ChevronDown, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -156,10 +156,7 @@ function TradeEvent({ data }: { data: Record<string, unknown> }) {
 export default function SessionReplay() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  const { data: sessions = [] } = useQuery({
-    queryKey: ["sessions"],
-    queryFn: () => apiClient.listSessions().then((r) => r.data),
-  });
+  const { data: sessions = [] } = useListSessions();
 
   const { data: replay, isLoading: replayLoading } = useQuery<ReplayData>({
     queryKey: ["session-replay", selectedId],

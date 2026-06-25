@@ -61,7 +61,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd artifacts/trading-psychology-mobile && EXPO_NO_DOCTOR=1 PORT=3001 pnpm run dev"
+args = "cd artifacts/trading-psychology-mobile && PORT=3001 EXPO_NO_DOCTOR=1 pnpm exec expo start --localhost --port 3001"
 waitForPort = 3001
 
 [agent]
@@ -76,10 +76,6 @@ timeoutMs = 20000
 [[ports]]
 localPort = 3001
 externalPort = 3001
-
-[[ports]]
-localPort = 5000
-externalPort = 80
 
 [[ports]]
 localPort = 8080
