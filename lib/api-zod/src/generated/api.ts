@@ -101,7 +101,8 @@ export const SubmitCheckBody = zod.object({
   "urgeLevel": zod.number().min(1).max(submitCheckBodyUrgeLevelMax),
   "decisionClarity": zod.number().min(1).max(submitCheckBodyDecisionClarityMax),
   "patience": zod.number().min(1).max(submitCheckBodyPatienceMax).optional(),
-  "notes": zod.string().optional()
+  "notes": zod.string().optional(),
+  "submissionDurationMs": zod.number().optional()
 })
 
 

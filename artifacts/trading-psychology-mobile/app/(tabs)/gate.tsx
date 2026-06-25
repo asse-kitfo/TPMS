@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,14 +7,19 @@ import {
   TextInput,
   TouchableOpacity,
   Platform,
+  Modal,
+  Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { Feather } from "@expo/vector-icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api, Session, CheckResult, SetupGrade, PsychState, Verdict } from "@/lib/api";
 import { useColors } from "@/hooks/useColors";
 import { Card, Button, SliderRow, SectionLabel, OptionChip, EmptyState, webTop, webBottom } from "@/components/UI";
+
+const DISCLAIMER_KEY = "apexterm-disclaimer-accepted";
 
 const PAIRS = ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD", "NZD/USD", "EUR/GBP", "XAU/USD", "Other"];
 
@@ -185,9 +190,9 @@ function VerdictCard({
   const { verdict: displayVerdict, downgraded } = applyRiskDowngrade(result.verdict, lossCount);
 
   const verdictMeta: Record<string, { label: string; color: string; icon: string; bg: string }> = {
-    TRADE: { label: "TRADE", color: "#22c55e", icon: "check-circle", bg: "#22c55e18" },
+    TRADE: { label: "STATE ALIGNED", color: "#22c55e", icon: "check-circle", bg: "#22c55e18" },
     REDUCE_RISK: { label: "REDUCE RISK", color: "#f59e0b", icon: "alert-triangle", bg: "#f59e0b18" },
-    NO_TRADE: { label: "NO TRADE", color: "#f97316", icon: "pause-circle", bg: "#f97316 18" },
+    NO_TRADE: { label: "STATE COMPROMISED", color: "#f97316", icon: "pause-circle", bg: "#f9731618" },
     HARD_BLOCK: { label: "HARD BLOCK", color: "#ef4444", icon: "x-circle", bg: "#ef444418" },
   };
   const meta = verdictMeta[displayVerdict];
@@ -379,6 +384,12 @@ export default function GateScreen() {
   const [result, setResult] = useState<CheckResult | null>(null);
   const [confidence, setConfidence] = useState<ConfidenceResult | null>(null);
 
+  const [disclaimerVisible, setDisclaimerVisible] = useState(false);
+  const [frictionUnlocked, setFrictionUnlocked] = useState(false);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef = useRef<number>(Date.now());
+
   const { data: session } = useQuery<Session | null>({
     queryKey: ["session"],
     queryFn: async () => {
@@ -387,10 +398,49 @@ export default function GateScreen() {
   });
 
   const lossCount = session?.lossCount ?? 0;
+  const frictionRequired = lossCount >= 1;
+
+  useEffect(() => {
+    AsyncStorage.getItem(DISCLAIMER_KEY).then((val) => {
+      if (!val) setDisclaimerVisible(true);
+    }).catch(() => {});
+    startTimeRef.current = Date.now();
+  }, []);
+
+  const acceptDisclaimer = () => {
+    AsyncStorage.setItem(DISCLAIMER_KEY, "1").catch(() => {});
+    setDisclaimerVisible(false);
+  };
+
+  const startHold = () => {
+    if (holdIntervalRef.current) return;
+    holdIntervalRef.current = setInterval(() => {
+      setHoldProgress((p) => {
+        const next = p + 1;
+        if (next >= 100) {
+          clearInterval(holdIntervalRef.current!);
+          holdIntervalRef.current = null;
+          setFrictionUnlocked(true);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          return 100;
+        }
+        return next;
+      });
+    }, 100);
+  };
+
+  const endHold = () => {
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
+    setHoldProgress((p) => (p < 100 ? 0 : p));
+  };
 
   const checkMutation = useMutation({
     mutationFn: async () => {
       if (!session) throw new Error("No active session");
+      const submissionDurationMs = Date.now() - startTimeRef.current;
       return api.submitCheck({
         sessionId: session.id,
         pair,
@@ -401,7 +451,8 @@ export default function GateScreen() {
         decisionClarity: clarity,
         patience,
         notes: notes || undefined,
-      });
+        submissionDurationMs,
+      } as any);
     },
     onSuccess: (data) => {
       const conf = computeConfidence({
@@ -463,6 +514,34 @@ export default function GateScreen() {
   }
 
   return (
+    <>
+    <Modal visible={disclaimerVisible} transparent animationType="fade" statusBarTranslucent>
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "center", alignItems: "center", padding: 20 }}>
+        <View style={{ backgroundColor: colors.card, borderRadius: 16, padding: 24, gap: 16, borderWidth: 1, borderColor: colors.border, maxWidth: 400, width: "100%" }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <Feather name="shield" size={22} color={colors.primary} />
+            <Text style={{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold" }}>Before You Begin</Text>
+          </View>
+          <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20 }}>
+            <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold" }}>ApexTerm is a psychological training tool</Text>, not a financial advisory service. Nothing here constitutes investment advice or a guarantee of trading performance.
+          </Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20 }}>
+            The Trade Gate examines your <Text style={{ fontStyle: "italic" }}>psychological state</Text> only. Trading involves substantial risk of loss. You are solely responsible for all trading decisions.
+          </Text>
+          <View style={{ padding: 12, borderRadius: 10, backgroundColor: `${colors.primary}08`, borderWidth: 1, borderColor: `${colors.primary}25` }}>
+            <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold", lineHeight: 18 }}>
+              By continuing, you confirm this is a psychological exercise tool, not financial advice, and all risk remains with you.
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={acceptDisclaimer}
+            style={{ backgroundColor: colors.primary, borderRadius: 10, padding: 14, alignItems: "center" }}
+          >
+            <Text style={{ color: colors.primaryForeground, fontSize: 15, fontFamily: "Inter_700Bold" }}>I Understand — Begin Training</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: bottomPad, gap: 20 }}
@@ -640,14 +719,46 @@ export default function GateScreen() {
         </Text>
       )}
 
+      {frictionRequired && !frictionUnlocked && (
+        <View style={{ gap: 8 }}>
+          <View style={{ flexDirection: "row", gap: 8, padding: 12, borderRadius: 10, backgroundColor: "#f59e0b10", borderWidth: 1, borderColor: "#f59e0b30" }}>
+            <Feather name="wind" size={14} color="#f59e0b" style={{ marginTop: 1 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: "#f59e0b", fontSize: 13, fontFamily: "Inter_600SemiBold" }}>Dynamic Friction — {lossCount} loss{lossCount > 1 ? "es" : ""} this session</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2, lineHeight: 17 }}>
+                Hold the button below for 10 seconds. This deliberate pause keeps the cortex in control and prevents reactive re-entry after a loss.
+              </Text>
+            </View>
+          </View>
+          <Pressable
+            onPressIn={startHold}
+            onPressOut={endHold}
+            style={{ height: 52, borderRadius: 10, borderWidth: 2, borderColor: "#f59e0b60", backgroundColor: "#f59e0b12", overflow: "hidden", justifyContent: "center", alignItems: "center" }}
+          >
+            <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${holdProgress}%` as any, backgroundColor: "#f59e0b30" }} />
+            <Text style={{ color: "#f59e0b", fontSize: 13, fontFamily: "Inter_700Bold" }}>
+              {holdProgress === 0 ? "Hold to Confirm Deliberate State" : `Hold… ${Math.ceil((100 - holdProgress) / 10)}s remaining`}
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {frictionRequired && frictionUnlocked && (
+        <View style={{ padding: 10, borderRadius: 8, backgroundColor: "#22c55e08", borderWidth: 1, borderColor: "#22c55e25" }}>
+          <Text style={{ color: "#22c55e", fontSize: 12, fontFamily: "Inter_600SemiBold", textAlign: "center" }}>✓ 10-second hold complete — deliberate state confirmed</Text>
+        </View>
+      )}
+
       <Button
         label="Run Gate Check"
         onPress={() => checkMutation.mutate()}
         loading={checkMutation.isPending}
+        disabled={frictionRequired && !frictionUnlocked}
         icon={<Feather name="check-circle" size={14} color={colors.primaryForeground} />}
         fullWidth
       />
     </ScrollView>
+    </>
   );
 }
 

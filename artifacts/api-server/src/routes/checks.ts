@@ -13,23 +13,26 @@ function computeConfidenceScore(data: {
   decisionClarity: number;
 }): number {
   let score = 50;
-  // Clear blocking signals — high system confidence in verdict
   if (data.urgeLevel >= 8) score += 30;
   if (data.focusLevel <= 3) score += 25;
   if (data.psychState === "FEAR" || data.psychState === "OVERCONFIDENT") score += 20;
   if (data.setupGrade === "C") score += 10;
-  // Clear green signals — high confidence in approving
   if (data.urgeLevel <= 2) score += 20;
   if (data.focusLevel >= 8) score += 15;
   if (data.psychState === "CALM" || data.psychState === "FOCUSED") score += 15;
   if (data.setupGrade === "A_PLUS") score += 15;
   if (data.decisionClarity >= 8) score += 10;
   if (data.decisionClarity <= 3) score += 10;
-  // Mixed/ambiguous signals reduce confidence
   if (data.psychState === "URGE" || data.psychState === "PRESSURE") score -= 10;
   if (data.urgeLevel >= 4 && data.urgeLevel <= 6) score -= 15;
   if (data.focusLevel >= 4 && data.focusLevel <= 6) score -= 10;
   return Math.min(99, Math.max(42, score));
+}
+
+function downgradeVerdict(verdict: string): string {
+  if (verdict === "TRADE") return "REDUCE_RISK";
+  if (verdict === "REDUCE_RISK") return "NO_TRADE";
+  return verdict;
 }
 
 function computeVerdict(data: {
@@ -39,12 +42,38 @@ function computeVerdict(data: {
   urgeLevel: number;
   decisionClarity: number;
   sessionLossCount?: number;
+  submissionDurationMs?: number;
+  baselineAvgFocus?: number;
+  baselineAvgUrge?: number;
+  baselineAvgClarity?: number;
+  hasBaseline?: boolean;
 }): { verdict: string; verdictReason: string; confidenceScore: number } {
   const { setupGrade, psychState, focusLevel, urgeLevel, decisionClarity } = data;
   const lossCount = data.sessionLossCount ?? 0;
   const confidenceScore = computeConfidenceScore({ setupGrade, psychState, focusLevel, urgeLevel, decisionClarity });
 
-  // ── HARD BLOCK ─────────────────────────────────────────────────────
+  const flags: string[] = [];
+
+  // ── Speed-to-Submit detection ──────────────────────────────────────────────
+  const isRush = typeof data.submissionDurationMs === "number" && data.submissionDurationMs < 4000;
+  if (isRush) {
+    flags.push("Speed-to-submit alert: form completed in under 4 seconds. Rapid submission indicates the analytical checklist was not genuinely engaged — only the emotional brain moves this fast.");
+  }
+
+  // ── Baseline Delta incongruence detection ──────────────────────────────────
+  let baselineMismatch = false;
+  if (data.hasBaseline && data.baselineAvgFocus !== undefined && data.baselineAvgClarity !== undefined) {
+    const focusDelta = focusLevel - data.baselineAvgFocus;
+    const clarityDelta = decisionClarity - data.baselineAvgClarity;
+    if (focusDelta > 2.5 && clarityDelta > 2.5 && lossCount >= 1) {
+      baselineMismatch = true;
+      flags.push(
+        `Baseline incongruence: your reported focus (${focusLevel}) and clarity (${decisionClarity}) are significantly above your historical average (focus avg: ${data.baselineAvgFocus.toFixed(1)}, clarity avg: ${data.baselineAvgClarity.toFixed(1)}). After losses, inflated self-reporting is a documented bias. The system is adjusting accordingly.`
+      );
+    }
+  }
+
+  // ── HARD BLOCK ─────────────────────────────────────────────────────────────
   if (urgeLevel >= 8) {
     return { verdict: "HARD_BLOCK", confidenceScore,
       verdictReason: "Urge level is critically high. Your survival brain is in full control. No capital is safe when the amygdala is running the show. Step away now." };
@@ -66,37 +95,35 @@ function computeVerdict(data: {
       verdictReason: "Overconfidence detected. The ego has inflated your perceived edge. Overconfidence is the precursor to revenge trading and oversizing. Stand down." };
   }
 
-  // ── RISK CONTEXT: 3+ losses in session → behavioral pattern detected ──
+  // ── RISK CONTEXT: 3+ losses ────────────────────────────────────────────────
   if (lossCount >= 3) {
     return { verdict: "NO_TRADE", confidenceScore,
       verdictReason: `Behavioral pattern detected: ${lossCount} losses in this session. After back-to-back losses, cortisol elevation impairs decision-making even when self-reported state appears normal. The system is applying a protective block. This is not a punishment — it is data.` };
   }
 
-  // ── REDUCE RISK ────────────────────────────────────────────────────
+  // ── REDUCE RISK ────────────────────────────────────────────────────────────
   if (urgeLevel >= 6) {
-    return { verdict: "REDUCE_RISK", confidenceScore,
-      verdictReason: "Urge to execute is elevated. The survival brain is pushing for action. Trade at 50% of normal size to limit damage if the emotional brain hijacks execution." };
+    const reason = "Urge to execute is elevated. The survival brain is pushing for action. Trade at 50% of normal size to limit damage if the emotional brain hijacks execution.";
+    return { verdict: "REDUCE_RISK", confidenceScore, verdictReason: flags.length ? `${flags.join(" ")} — ${reason}` : reason };
   }
   if (psychState === "PRESSURE") {
-    return { verdict: "REDUCE_RISK", confidenceScore,
-      verdictReason: "You are under pressure — this means you NEED this trade to work, which means you won't let it work. Reduce size by 50% or do not trade." };
+    const reason = "You are under pressure — this means you NEED this trade to work, which means you won't let it work. Reduce size by 50% or do not trade.";
+    return { verdict: "REDUCE_RISK", confidenceScore, verdictReason: flags.length ? `${flags.join(" ")} — ${reason}` : reason };
   }
   if (decisionClarity < 5) {
-    return { verdict: "REDUCE_RISK", confidenceScore,
-      verdictReason: "Decision clarity is below threshold. If you cannot articulate clearly why this is an edge, reduce size drastically." };
+    const reason = "Decision clarity is below threshold. If you cannot articulate clearly why this is an edge, reduce size drastically.";
+    return { verdict: "REDUCE_RISK", confidenceScore, verdictReason: flags.length ? `${flags.join(" ")} — ${reason}` : reason };
   }
   if (focusLevel < 6) {
-    return { verdict: "REDUCE_RISK", confidenceScore,
-      verdictReason: "Focus is sub-optimal. You may miss signals during the trade. Reduce size and set alerts so you do not need to monitor actively." };
+    const reason = "Focus is sub-optimal. You may miss signals during the trade. Reduce size and set alerts so you do not need to monitor actively.";
+    return { verdict: "REDUCE_RISK", confidenceScore, verdictReason: flags.length ? `${flags.join(" ")} — ${reason}` : reason };
   }
-
-  // ── 2 losses = reduce risk even on green inputs ──────────────────
   if (lossCount >= 2) {
     return { verdict: "REDUCE_RISK", confidenceScore,
       verdictReason: `Two losses detected in this session. Setup qualifies, but the system is capping position size at 50% — back-to-back losses create emotional contamination that is statistically invisible to self-reporting.` };
   }
 
-  // ── NO TRADE ───────────────────────────────────────────────────────
+  // ── NO TRADE ───────────────────────────────────────────────────────────────
   if (psychState === "URGE") {
     return { verdict: "NO_TRADE", confidenceScore,
       verdictReason: "You reported an urge to trade. The urge IS the signal to stand aside — it means the survival brain is pushing for action, not the cortex seeing an edge. Wait until the urge passes before reassessing." };
@@ -106,16 +133,17 @@ function computeVerdict(data: {
       verdictReason: "Moderate urge combined with below-peak decision clarity. Your mind is constructing a narrative to justify trading. This trade idea is coming from the emotional brain, not the analytical brain." };
   }
 
-  // ── TRADE APPROVED ─────────────────────────────────────────────────
-  if (setupGrade === "A_PLUS" && (psychState === "CALM" || psychState === "FOCUSED")) {
-    if (focusLevel >= 7 && urgeLevel <= 4 && decisionClarity >= 7) {
-      return { verdict: "TRADE", confidenceScore,
-        verdictReason: "All systems green. A+ setup, cortex online, urge is low and decision is clear. Execute your plan with full discipline — then leave the trade alone." };
-    }
-  }
+  // ── TRADE APPROVED — apply speed/baseline downgrades if flagged ────────────
+  let baseVerdict = "TRADE";
+  let baseReason = setupGrade === "A_PLUS" && (psychState === "CALM" || psychState === "FOCUSED") && focusLevel >= 7 && urgeLevel <= 4 && decisionClarity >= 7
+    ? "All systems green. A+ setup, cortex online, urge is low and decision is clear. Execute your plan with full discipline — then leave the trade alone."
+    : "Setup meets minimum criteria. Execute your predefined plan exactly. The moment you deviate, the statistical edge is gone.";
 
-  return { verdict: "TRADE", confidenceScore,
-    verdictReason: "Setup meets minimum criteria. Execute your predefined plan exactly. The moment you deviate, the statistical edge is gone." };
+  if (isRush) baseVerdict = downgradeVerdict(baseVerdict);
+  if (baselineMismatch) baseVerdict = downgradeVerdict(baseVerdict);
+
+  const allReasons = flags.length ? `${flags.join(" ")} — ${baseReason}` : baseReason;
+  return { verdict: baseVerdict, confidenceScore, verdictReason: allReasons };
 }
 
 router.post("/", async (req, res) => {
@@ -124,7 +152,6 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "Invalid input", details: parsed.error });
   }
 
-  // Fetch session loss count for behavioral risk context
   let sessionLossCount = 0;
   try {
     const [session] = await db
@@ -133,12 +160,37 @@ router.post("/", async (req, res) => {
       .where(eq(sessionsTable.id, parsed.data.sessionId));
     if (session) sessionLossCount = session.lossCount;
   } catch {
-    // Non-fatal — proceed without loss context
+    // Non-fatal
+  }
+
+  // Fetch historical baseline for incongruence detection
+  let baselineAvgFocus: number | undefined;
+  let baselineAvgUrge: number | undefined;
+  let baselineAvgClarity: number | undefined;
+  let hasBaseline = false;
+  try {
+    const recent = await db
+      .select({ focusLevel: checksTable.focusLevel, urgeLevel: checksTable.urgeLevel, decisionClarity: checksTable.decisionClarity })
+      .from(checksTable)
+      .orderBy(desc(checksTable.createdAt))
+      .limit(15);
+    if (recent.length >= 5) {
+      baselineAvgFocus = recent.reduce((s, c) => s + c.focusLevel, 0) / recent.length;
+      baselineAvgUrge = recent.reduce((s, c) => s + c.urgeLevel, 0) / recent.length;
+      baselineAvgClarity = recent.reduce((s, c) => s + c.decisionClarity, 0) / recent.length;
+      hasBaseline = true;
+    }
+  } catch {
+    // Non-fatal
   }
 
   const { verdict, verdictReason, confidenceScore } = computeVerdict({
     ...parsed.data,
     sessionLossCount,
+    baselineAvgFocus,
+    baselineAvgUrge,
+    baselineAvgClarity,
+    hasBaseline,
   });
 
   const [check] = await db

@@ -2,6 +2,7 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { DisclaimerModal } from "@/components/DisclaimerModal";
 import NotFound from "@/pages/not-found";
 import { Shell } from "@/components/layout/Shell";
 
@@ -41,6 +42,7 @@ function App() {
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <Router />
         </WouterRouter>
+        <DisclaimerModal />
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

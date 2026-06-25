@@ -100,6 +100,7 @@ export interface CheckInput {
      */
   patience?: number;
   notes?: string;
+  submissionDurationMs?: number;
 }
 
 export type CheckResultSetupGrade = typeof CheckResultSetupGrade[keyof typeof CheckResultSetupGrade];

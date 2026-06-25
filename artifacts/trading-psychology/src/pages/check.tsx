@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -52,6 +52,13 @@ const checkSchema = z.object({
   patience: z.number().min(1).max(10),
   notes: z.string().optional(),
 });
+
+const VERDICT_DISPLAY_LABELS: Record<string, string> = {
+  TRADE: "STATE ALIGNED",
+  REDUCE_RISK: "REDUCE RISK",
+  NO_TRADE: "STATE COMPROMISED",
+  HARD_BLOCK: "HARD BLOCK",
+};
 
 const PSYCH_STATE_LABELS: Record<string, string> = {
   CALM: "Calm & Objective",
@@ -248,12 +255,23 @@ export default function TradeGate() {
     return () => clearInterval(interval);
   }, [phase, coolingOffRemaining]);
 
+  useEffect(() => {
+    if (phase === "MAIN_CHECK") {
+      mainCheckStartTime.current = Date.now();
+      setFrictionUnlocked(false);
+    }
+  }, [phase]);
+
+  const lossCount = session?.lossCount ?? 0;
+  const frictionRequired = lossCount >= 1;
+
   const onSubmit = (values: z.infer<typeof checkSchema>) => {
     if (!session) return;
     setSubmittedData({ pair: values.pair, setupGrade: values.setupGrade });
     const score = computeReadinessScore(values);
+    const submissionDurationMs = mainCheckStartTime.current > 0 ? Date.now() - mainCheckStartTime.current : undefined;
     submitCheck.mutate(
-      { data: { ...values, sessionId: session.id } },
+      { data: { ...values, sessionId: session.id, submissionDurationMs } },
       {
         onSuccess: (data: { verdict: string; verdictReason?: string | null }) => {
           setVerdict({ status: data.verdict as CheckResultVerdict, reason: data.verdictReason || null, readinessScore: score });
@@ -360,7 +378,7 @@ export default function TradeGate() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-widest">System Verdict</p>
-                <h1 className="text-4xl font-black tracking-tight uppercase mt-1">{verdict.status.replace("_", " ")}</h1>
+                <h1 className="text-4xl font-black tracking-tight uppercase mt-1">{VERDICT_DISPLAY_LABELS[verdict.status] ?? verdict.status.replace("_", " ")}</h1>
                 {verdict.reason && <p className="text-base text-muted-foreground mt-3 leading-relaxed">{verdict.reason}</p>}
               </div>
             </div>
@@ -420,7 +438,7 @@ export default function TradeGate() {
               size="lg"
               variant={verdict.status === "HARD_BLOCK" || verdict.status === "NO_TRADE" ? "destructive" : "outline"}
               className="w-full h-12 text-base"
-              onClick={() => { setVerdict(null); setPhase("BODY_SCAN"); setBodyScan({}); setRulesChecked({}); form.reset(); setSubmittedData(null); }}
+              onClick={() => { setVerdict(null); setPhase("BODY_SCAN"); setBodyScan({}); setRulesChecked({}); form.reset(); setSubmittedData(null); setFrictionUnlocked(false); }}
             >
               {verdict.status === "TRADE" || verdict.status === "REDUCE_RISK" ? "← Run Another Check" : "Acknowledge & Reset"}
             </Button>
@@ -703,7 +721,11 @@ export default function TradeGate() {
                 </FormItem>
               )} />
 
-              <Button type="submit" size="lg" className="w-full h-14 text-lg font-bold" disabled={submitCheck.isPending}>
+              {frictionRequired && !frictionUnlocked && (
+                <FrictionHold lossCount={lossCount} onUnlock={() => setFrictionUnlocked(true)} />
+              )}
+
+              <Button type="submit" size="lg" className="w-full h-14 text-lg font-bold" disabled={submitCheck.isPending || (frictionRequired && !frictionUnlocked)}>
                 {submitCheck.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
                 Get Verdict
               </Button>
