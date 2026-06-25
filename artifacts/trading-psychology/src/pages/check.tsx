@@ -184,6 +184,85 @@ function BreathingReset({ onComplete }: { onComplete: () => void }) {
   );
 }
 
+function FrictionHold({ lossCount, onUnlock }: { lossCount: number; onUnlock: () => void }) {
+  const [progress, setProgress] = useState(0);
+  const [holding, setHolding] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const unlocked = progress >= 100;
+
+  const startHold = () => {
+    if (unlocked || intervalRef.current) return;
+    setHolding(true);
+    intervalRef.current = setInterval(() => {
+      setProgress((p) => {
+        const next = p + 1;
+        if (next >= 100) {
+          clearInterval(intervalRef.current!);
+          intervalRef.current = null;
+          onUnlock();
+          return 100;
+        }
+        return next;
+      });
+    }, 100);
+  };
+
+  const endHold = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setHolding(false);
+    setProgress((p) => (p < 100 ? 0 : p));
+  };
+
+  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
+
+  return (
+    <div className="space-y-3 p-4 rounded-xl border border-amber-500/40 bg-amber-500/5">
+      <div className="flex items-start gap-2">
+        <Wind className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-amber-400">Friction Pause Required</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {lossCount} {lossCount === 1 ? "loss" : "losses"} this session. Hold the button below for 10 seconds to confirm this is a deliberate decision, not a reactive one.
+          </p>
+        </div>
+      </div>
+
+      <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+        <div
+          className="h-full rounded-full bg-amber-500 transition-none"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      {unlocked ? (
+        <div className="flex items-center gap-2 text-sm text-green-400 font-medium">
+          <ShieldCheck className="h-4 w-4" />
+          Pause complete — deliberate action confirmed. Submit is now active.
+        </div>
+      ) : (
+        <button
+          type="button"
+          onMouseDown={startHold}
+          onMouseUp={endHold}
+          onMouseLeave={endHold}
+          onTouchStart={(e) => { e.preventDefault(); startHold(); }}
+          onTouchEnd={endHold}
+          className={`w-full py-3 rounded-lg border text-sm font-semibold select-none transition-all ${
+            holding
+              ? "border-amber-500 bg-amber-500/20 text-amber-300"
+              : "border-amber-500/40 bg-transparent text-amber-400 hover:border-amber-500/70"
+          }`}
+        >
+          {holding ? "Hold…" : "Hold to unlock submit"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function TradeGate() {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
@@ -194,6 +273,8 @@ export default function TradeGate() {
   const [verdict, setVerdict] = useState<{ status: CheckResultVerdict; reason: string | null; readinessScore: number } | null>(null);
   const [submittedData, setSubmittedData] = useState<{ pair: string; setupGrade: string } | null>(null);
   const [coolingOffRemaining, setCoolingOffRemaining] = useState(0);
+  const [frictionUnlocked, setFrictionUnlocked] = useState(false);
+  const mainCheckStartTime = useRef<number>(0);
   const [userRules] = useState<string[]>(() => {
     try {
       const stored = localStorage.getItem("user-trade-rules");
