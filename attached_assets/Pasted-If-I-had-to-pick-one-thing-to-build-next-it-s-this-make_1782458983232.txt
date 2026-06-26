@@ -1,0 +1,30 @@
+If I had to pick one thing to build next, it's this: make the trader pre-commit to trade plans while calm, and turn the Trade Gate into a matching check instead of an open-ended self-report.
+Here's why this is the most practical lever, then how to actually build it.
+Why this one
+Everything else in your system (sliders, breathing, rules checklist) asks a possibly-dysregulated trader to generate an honest answer in the moment. That's the weakest point in the whole architecture — it's asking the compromised brain to grade itself. Pre-commitment sidesteps that entirely: the calm trader does the thinking ahead of time, and the stressed trader just has to answer "does this match what I already decided?" — a much easier and more honest question under pressure. It also needs zero new integrations (no broker API, no wearables, no camera permissions), so it's buildable with what you already have.
+How to build it
+1. New object: "Setup Plan" (created during Analysis mode, before any live urge exists)
+{
+  id, asset, direction,
+  entryZone, stopLoss, takeProfit,
+  setupGrade, thesis,         // why this is A+
+  invalidationCondition,      // what proves this idea wrong
+  createdAt, expiresAt        // plans go stale — force re-validation after X hours
+}
+Trader builds these when watching the market with no position and no urge — exactly the mental state you want feeding the system.
+2. At the moment of wanting to trade, the Trade Gate changes shape:
+
+Step 1 (Body Scan) and Amygdala Reset stay exactly as they are.
+Step 3 becomes: "Select the pre-logged plan this trade matches" instead of a blank form.
+
+If no matching plan exists → automatic REDUCE RISK or HARD BLOCK, with copy like: "No pre-committed plan for this setup. This is the moment your amygdala invents a reason. Step away or log it next time before the urge starts." This one rule alone kills a huge share of impulsive entries, because impulsive trades by definition weren't planned five minutes ago.
+If a plan exists → trader confirms entry/stop/target still match the live price action (small numeric check), and then the sliders apply — but now they're rating "am I clear enough to execute what calm-me already decided," not "am I clear enough to invent a trade right now." Same UI, much harder for the lizard brain to bullshit.
+
+
+
+3. Score the gap, not just the state.
+
+Add one more incongruence signal that's pure gold: time between plan creation and execution attempt. A plan made 3 minutes ago, during a losing streak, immediately after market moved — that's a textbook chase, even if every slider says "Calm, Focused, 9/10." This is more powerful than your baseline-delta check because it's structural, not self-reported.
+4. Practical UI note for mobile: surface "Plans expiring soon" or "no live plans" as a persistent banner on the Hub screen. This nudges traders to do their planning during quiet moments instead of discovering at the worst moment that the gate has nothing to match against.
+The one supporting change worth pairing with it
+Track "gate outcome by plan-match status" in Behavioral Analytics — i.e., show the trader their actual win rate on matched-plan trades vs. no-plan/forced trades. Once a trader sees their own data ("I'm profitable on planned trades and a net loser on everything I let through without one"), the system stops being a nagging rule-checker and becomes self-validating evidence — that's what actually changes behavior long-term, more than any single gate mechanic.
