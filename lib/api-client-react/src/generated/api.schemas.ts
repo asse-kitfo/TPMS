@@ -101,6 +101,9 @@ export interface CheckInput {
   patience?: number;
   notes?: string;
   submissionDurationMs?: number;
+  /** Pre-commitment plan match fields */
+  planId?: number;
+  planMatchStatus?: PlanMatchStatus;
 }
 
 export type CheckResultSetupGrade = typeof CheckResultSetupGrade[keyof typeof CheckResultSetupGrade];
@@ -279,6 +282,52 @@ export interface TradeUpdate {
   emotionalState?: string;
   notes?: string;
   closedAt?: string;
+}
+
+export type SetupPlanDirection = 'LONG' | 'SHORT' | 'NEUTRAL';
+export type SetupPlanGrade = 'A_PLUS' | 'B' | 'C';
+
+export interface SetupPlan {
+  id: number;
+  asset: string;
+  direction: SetupPlanDirection;
+  entryZone: string;
+  stopLoss: string;
+  takeProfit: string;
+  setupGrade: SetupPlanGrade;
+  thesis: string;
+  invalidationCondition: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface CreateSetupPlanInput {
+  asset: string;
+  direction: SetupPlanDirection;
+  entryZone: string;
+  stopLoss: string;
+  takeProfit: string;
+  setupGrade?: SetupPlanGrade;
+  thesis: string;
+  invalidationCondition: string;
+  expiresInHours?: number;
+}
+
+export type PlanMatchStatus = 'MATCHED' | 'NO_PLAN' | 'SKIPPED';
+
+export interface PlanMatchOutcomeGroup {
+  checkCount: number;
+  tradeCount: number;
+  winRate: number | null;
+  blocked: number;
+  allowed: number;
+}
+
+export interface PlanMatchOutcomes {
+  matched: PlanMatchOutcomeGroup;
+  noPlan: PlanMatchOutcomeGroup;
+  skipped: PlanMatchOutcomeGroup;
+  totalWithPlanData: number;
 }
 
 export interface StatsSummary {

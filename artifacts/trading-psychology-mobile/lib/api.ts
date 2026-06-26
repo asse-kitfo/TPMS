@@ -16,6 +16,35 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export type SessionMode = "ANALYSIS" | "PRE_TRADE" | "EXECUTION" | "LOCKED";
+
+export type SetupPlanDirection = "LONG" | "SHORT" | "NEUTRAL";
+export type SetupPlanGrade = "A_PLUS" | "B" | "C";
+
+export interface SetupPlan {
+  id: number;
+  asset: string;
+  direction: SetupPlanDirection;
+  entryZone: string;
+  stopLoss: string;
+  takeProfit: string;
+  setupGrade: SetupPlanGrade;
+  thesis: string;
+  invalidationCondition: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface CreateSetupPlanInput {
+  asset: string;
+  direction: SetupPlanDirection;
+  entryZone: string;
+  stopLoss: string;
+  takeProfit: string;
+  setupGrade?: SetupPlanGrade;
+  thesis: string;
+  invalidationCondition: string;
+  expiresInHours?: number;
+}
 export interface Session {
   id: number;
   mode: SessionMode;
@@ -131,4 +160,10 @@ export const api = {
 
   getStatsSummary: () => request<StatsSummary>("/stats/summary"),
   getDisciplineStreak: () => request<DisciplineStreak>("/stats/discipline-streak"),
+
+  listSetupPlans: () => request<SetupPlan[]>("/plans"),
+  createSetupPlan: (data: CreateSetupPlanInput) =>
+    request<SetupPlan>("/plans", { method: "POST", body: JSON.stringify(data) }),
+  deleteSetupPlan: (id: number) =>
+    request<void>(`/plans/${id}`, { method: "DELETE" }),
 };

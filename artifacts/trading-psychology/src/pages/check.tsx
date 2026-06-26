@@ -5,8 +5,10 @@ import { z } from "zod";
 import {
   useSubmitCheck,
   useGetCurrentSession,
+  useListSetupPlans,
   getListChecksQueryKey,
 } from "@workspace/api-client-react";
+import type { SetupPlan } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -17,13 +19,14 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   AlertTriangle, ShieldCheck, ShieldAlert, Ban, Loader2, Wind,
   Brain, Zap, Activity, Eye, Crosshair, OctagonAlert, Timer,
-  CheckCircle2, ListChecks, TrendingUp
+  CheckCircle2, ListChecks, TrendingUp, TrendingDown, Minus,
+  BookMarked, Clock, Plus, XCircle
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 
-type Phase = "COOLING_OFF" | "BODY_SCAN" | "AMYGDALA_RESET" | "RULES_CHECK" | "MAIN_CHECK" | "VERDICT";
+type Phase = "COOLING_OFF" | "BODY_SCAN" | "AMYGDALA_RESET" | "RULES_CHECK" | "PLAN_SELECT" | "MAIN_CHECK" | "VERDICT";
 type CheckResultVerdict = "TRADE" | "REDUCE_RISK" | "NO_TRADE" | "HARD_BLOCK";
 type BreathPhase = "INHALE" | "HOLD" | "EXHALE";
 
@@ -272,6 +275,8 @@ export default function TradeGate() {
   const [rulesChecked, setRulesChecked] = useState<Record<number, boolean>>({});
   const [verdict, setVerdict] = useState<{ status: CheckResultVerdict; reason: string | null; readinessScore: number } | null>(null);
   const [submittedData, setSubmittedData] = useState<{ pair: string; setupGrade: string } | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
+  const [planMatchStatus, setPlanMatchStatus] = useState<"MATCHED" | "NO_PLAN" | "SKIPPED">("NO_PLAN");
   const [coolingOffRemaining, setCoolingOffRemaining] = useState(0);
   const [frictionUnlocked, setFrictionUnlocked] = useState(false);
   const mainCheckStartTime = useRef<number>(0);
@@ -283,6 +288,7 @@ export default function TradeGate() {
   });
 
   const submitCheck = useSubmitCheck();
+  const { data: activePlans } = useListSetupPlans();
 
   const form = useForm<z.infer<typeof checkSchema>>({
     resolver: zodResolver(checkSchema),
@@ -352,7 +358,15 @@ export default function TradeGate() {
     const score = computeReadinessScore(values);
     const submissionDurationMs = mainCheckStartTime.current > 0 ? Date.now() - mainCheckStartTime.current : undefined;
     submitCheck.mutate(
-      { data: { ...values, sessionId: session.id, submissionDurationMs } },
+      {
+        data: {
+          ...values,
+          sessionId: session.id,
+          submissionDurationMs,
+          planId: selectedPlanId ?? undefined,
+          planMatchStatus,
+        },
+      },
       {
         onSuccess: (data: { verdict: string; verdictReason?: string | null }) => {
           setVerdict({ status: data.verdict as CheckResultVerdict, reason: data.verdictReason || null, readinessScore: score });
@@ -519,7 +533,7 @@ export default function TradeGate() {
               size="lg"
               variant={verdict.status === "HARD_BLOCK" || verdict.status === "NO_TRADE" ? "destructive" : "outline"}
               className="w-full h-12 text-base"
-              onClick={() => { setVerdict(null); setPhase("BODY_SCAN"); setBodyScan({}); setRulesChecked({}); form.reset(); setSubmittedData(null); setFrictionUnlocked(false); }}
+              onClick={() => { setVerdict(null); setPhase("BODY_SCAN"); setBodyScan({}); setRulesChecked({}); form.reset(); setSubmittedData(null); setFrictionUnlocked(false); setSelectedPlanId(null); setPlanMatchStatus("NO_PLAN"); }}
             >
               {verdict.status === "TRADE" || verdict.status === "REDUCE_RISK" ? "← Run Another Check" : "Acknowledge & Reset"}
             </Button>
@@ -597,9 +611,9 @@ export default function TradeGate() {
           size="lg"
           className="w-full h-14 text-lg font-bold"
           disabled={!allRulesChecked}
-          onClick={() => setPhase("MAIN_CHECK")}
+          onClick={() => setPhase("PLAN_SELECT")}
         >
-          {allRulesChecked ? "All rules confirmed — Proceed to Assessment →" : `Confirm all ${userRules.length} rules above`}
+          {allRulesChecked ? "All rules confirmed — Select Your Plan →" : `Confirm all ${userRules.length} rules above`}
         </Button>
       </div>
     );
@@ -680,19 +694,192 @@ export default function TradeGate() {
     );
   }
 
+  if (phase === "PLAN_SELECT") {
+    const hasPlans = (activePlans?.length ?? 0) > 0;
+
+    const formatExpiry = (expiresAt: string) => {
+      const ms = new Date(expiresAt).getTime() - Date.now();
+      if (ms <= 0) return "Expired";
+      const h = Math.floor(ms / 3600000);
+      const m = Math.floor((ms % 3600000) / 60000);
+      if (h === 0) return `${m}m left`;
+      return `${h}h ${m}m left`;
+    };
+
+    return (
+      <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+            <BookMarked className="h-8 w-8 text-primary" /> Trade Gate
+          </h1>
+          <p className="text-muted-foreground mt-1">Step 3 of 4 — Plan Match</p>
+        </div>
+
+        <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 flex gap-2">
+          <Brain className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-primary">
+            Select the pre-committed plan this trade matches. Your calm-state self already did the analysis. The stressed-state self just has to answer: "does this match what I decided?"
+          </p>
+        </div>
+
+        {!hasPlans ? (
+          <div className="p-6 rounded-xl border-2 border-amber-500/40 bg-amber-500/5 space-y-4 animate-in fade-in">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-6 w-6 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-400 text-lg">No Pre-Committed Plans Found</p>
+                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                  This is the moment your amygdala invents a reason. Impulsive trades by definition weren't planned before the urge started.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                  Build plans during quiet analysis time from the <strong className="text-foreground">Setup Plans</strong> page. Then return to the gate when a plan matches a live opportunity.
+                </p>
+              </div>
+            </div>
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+              <p className="text-sm font-semibold text-amber-400">System note:</p>
+              <p className="text-sm text-muted-foreground mt-1">Proceeding without a matched plan automatically applies a 50% risk cap. Your verdict will be capped at REDUCE RISK regardless of psychological state.</p>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" size="sm" asChild className="border-primary/30 text-primary hover:bg-primary/10">
+                <a href="/plans" target="_blank" rel="noopener noreferrer">
+                  <Plus className="h-4 w-4 mr-1" /> Build Plans Now
+                </a>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                onClick={() => {
+                  setPlanMatchStatus("NO_PLAN");
+                  setSelectedPlanId(null);
+                  setPhase("MAIN_CHECK");
+                }}
+              >
+                Continue Without Plan — Risk Capped at 50%
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="p-6 space-y-3">
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Select the plan this trade matches:</p>
+                {(activePlans! as SetupPlan[]).map((plan: SetupPlan) => {
+                  const isSelected = selectedPlanId === plan.id;
+                  const expiryLabel = formatExpiry(plan.expiresAt);
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPlanId(plan.id);
+                        setPlanMatchStatus("MATCHED");
+                      }}
+                      className={`w-full text-left p-4 rounded-xl border-2 transition-all space-y-2 ${
+                        isSelected ? "border-primary/60 bg-primary/5" : "border-border hover:border-border/80"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          {plan.direction === "LONG" ? <TrendingUp className="h-4 w-4 text-green-400" /> :
+                           plan.direction === "SHORT" ? <TrendingDown className="h-4 w-4 text-red-400" /> :
+                           <Minus className="h-4 w-4 text-muted-foreground" />}
+                          <span className="font-mono font-black text-base uppercase">{plan.asset}</span>
+                          <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                            plan.setupGrade === "A_PLUS" ? "text-primary bg-primary/10" :
+                            plan.setupGrade === "B" ? "text-amber-400 bg-amber-500/10" :
+                            "text-red-400 bg-red-500/10"
+                          }`}>
+                            {plan.setupGrade === "A_PLUS" ? "A+" : plan.setupGrade}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" />{expiryLabel}
+                          </span>
+                          {isSelected && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { label: "Entry", value: plan.entryZone },
+                          { label: "Stop", value: plan.stopLoss },
+                          { label: "Target", value: plan.takeProfit },
+                        ].map(({ label, value }) => (
+                          <div key={label} className="text-center">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{label}</p>
+                            <p className="font-mono text-xs font-semibold">{value}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2 italic">{plan.thesis}</p>
+                      {isSelected && (
+                        <div className="p-2.5 rounded-lg border border-destructive/20 bg-destructive/5">
+                          <p className="text-[10px] text-destructive uppercase tracking-widest mb-0.5 flex items-center gap-1">
+                            <XCircle className="h-3 w-3" /> Invalidation
+                          </p>
+                          <p className="text-xs text-muted-foreground">{plan.invalidationCondition}</p>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </CardContent>
+            </Card>
+
+            <div className="p-3 rounded-lg border border-border/50 bg-secondary/30 text-xs text-muted-foreground">
+              <p>No matching plan? <a href="/plans" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">Build one now</a> before continuing — or proceed without a plan (risk auto-capped at 50%).</p>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={() => {
+                  setPlanMatchStatus("SKIPPED");
+                  setSelectedPlanId(null);
+                  setPhase("MAIN_CHECK");
+                }}
+              >
+                Skip — No Matching Plan (50% Risk Cap)
+              </Button>
+              <Button
+                size="lg"
+                className="flex-1 h-12 font-bold"
+                disabled={selectedPlanId === null}
+                onClick={() => setPhase("MAIN_CHECK")}
+              >
+                {selectedPlanId ? "Plan Matched — Proceed to Assessment →" : "Select a plan above"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4">
       <div>
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
           <ShieldCheck className="h-8 w-8 text-primary" /> Trade Gate
         </h1>
-        <p className="text-muted-foreground mt-1">Step 3 of 3 — Psychological Assessment</p>
+        <p className="text-muted-foreground mt-1">Step 4 of 4 — Psychological Assessment</p>
       </div>
 
       <div className="flex gap-3">
         <div className="flex-1 p-3 rounded-lg bg-green-500/5 border border-green-500/20 flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-green-400 flex-shrink-0" />
-          <p className="text-sm text-green-400 font-medium">Body clear · Rules confirmed · Thinking brain engaged</p>
+          <p className="text-sm text-green-400 font-medium">
+            Body clear · Rules confirmed ·{" "}
+            {planMatchStatus === "MATCHED"
+              ? "Plan matched ✓"
+              : planMatchStatus === "SKIPPED"
+              ? "No plan (50% risk cap)"
+              : "No plan (50% risk cap)"}
+          </p>
         </div>
         <div className="p-3 rounded-lg border border-border/50 bg-card/50 text-center flex-shrink-0 min-w-[80px]">
           <p className="text-xs text-muted-foreground mb-0.5">Live Score</p>

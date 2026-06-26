@@ -2,11 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import {
   useGetGradeBreakdown,
   useGetBehavioralPatterns,
-  useGetDisciplineStreak
+  useGetDisciplineStreak,
+  useGetPlanMatchOutcomes,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, BarChart2, AlertTriangle, ShieldCheck, Brain, TrendingUp, Zap } from "lucide-react";
+import { Loader2, BarChart2, AlertTriangle, ShieldCheck, Brain, TrendingUp, Zap, BookMarked, CheckCircle2, XCircle } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -53,6 +54,7 @@ export default function BehavioralAnalytics() {
   const { data: breakdown, isLoading: isBreakdownLoading } = useGetGradeBreakdown();
   const { data: patterns, isLoading: isPatternsLoading } = useGetBehavioralPatterns();
   const { data: streak, isLoading: isStreakLoading } = useGetDisciplineStreak();
+  const { data: planMatchData } = useGetPlanMatchOutcomes();
   const { data: emotionData, isLoading: isEmotionLoading } = useQuery<EmotionBreakdown>({
     queryKey: ["/api/stats/emotion-breakdown"],
     queryFn: async () => {
@@ -305,6 +307,97 @@ export default function BehavioralAnalytics() {
             </Card>
           )}
         </div>
+      )}
+
+      {/* Plan Pre-Commitment Outcomes */}
+      {planMatchData && planMatchData.totalWithPlanData > 0 && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookMarked className="h-5 w-5 text-primary" />
+              Pre-Commitment Plan Impact
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Your actual win rate on matched-plan trades vs. unplanned trades. This is the data that changes behavior long-term.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid sm:grid-cols-3 gap-4">
+              {[
+                {
+                  label: "Plan Matched",
+                  icon: <CheckCircle2 className="h-4 w-4 text-green-400" />,
+                  data: planMatchData.matched,
+                  color: "text-green-400",
+                  border: "border-green-500/20",
+                  bg: "bg-green-500/5",
+                  bar: "bg-green-500",
+                },
+                {
+                  label: "No Pre-committed Plan",
+                  icon: <XCircle className="h-4 w-4 text-destructive" />,
+                  data: planMatchData.noPlan,
+                  color: "text-destructive",
+                  border: "border-destructive/20",
+                  bg: "bg-destructive/5",
+                  bar: "bg-destructive",
+                },
+                {
+                  label: "Plan Skipped",
+                  icon: <AlertTriangle className="h-4 w-4 text-amber-400" />,
+                  data: planMatchData.skipped,
+                  color: "text-amber-400",
+                  border: "border-amber-500/20",
+                  bg: "bg-amber-500/5",
+                  bar: "bg-amber-500",
+                },
+              ].map(({ label, icon, data, color, border, bg, bar }) => (
+                <div key={label} className={`p-4 rounded-xl border ${border} ${bg} space-y-3`}>
+                  <div className="flex items-center gap-2">
+                    {icon}
+                    <p className="text-sm font-semibold">{label}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-xs text-muted-foreground">Win Rate</span>
+                        <span className={`text-sm font-black font-mono ${color}`}>
+                          {data.winRate !== null ? `${data.winRate}%` : "—"}
+                        </span>
+                      </div>
+                      {data.winRate !== null && (
+                        <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${bar}`} style={{ width: `${data.winRate}%` }} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/30">
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase">Checks</p>
+                        <p className={`text-lg font-black font-mono ${color}`}>{data.checkCount}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase">Blocked</p>
+                        <p className="text-lg font-black font-mono text-muted-foreground">{data.blocked}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {planMatchData.matched.winRate !== null && planMatchData.noPlan.winRate !== null && (
+              <div className={`mt-4 p-3 rounded-lg border text-sm ${
+                planMatchData.matched.winRate > planMatchData.noPlan.winRate
+                  ? "border-green-500/20 bg-green-500/5 text-green-400"
+                  : "border-amber-500/20 bg-amber-500/5 text-amber-400"
+              }`}>
+                {planMatchData.matched.winRate > planMatchData.noPlan.winRate
+                  ? `You are ${planMatchData.matched.winRate - planMatchData.noPlan.winRate}% more likely to win on trades matched to pre-committed plans. Your calm-state analysis is more reliable than your in-the-moment judgment.`
+                  : `Insufficient data to show a clear difference yet. Keep logging — the gap between planned and unplanned trades typically emerges after 20+ samples.`}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <Card className="border-border/50">

@@ -1,1 +1,2 @@
 - [Rande Howell framework integration](rande-howell-framework.md) — archetypes/voices/alibi system, app structure, key patterns for future additions
+- [Setup Plan pre-commitment system](setup-plan-precommitment.md) — plan CRUD, gate PLAN_SELECT phase, server-side enforcement, chase detection, analytics

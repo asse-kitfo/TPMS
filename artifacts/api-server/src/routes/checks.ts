@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { db, checksTable, sessionsTable } from "@workspace/db";
+import { db, checksTable, sessionsTable, setupPlansTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
-import { SubmitCheckBody, ListChecksQueryParams } from "@workspace/api-zod";
+import { SubmitCheckBodyWithPlanMatch, ListChecksQueryParams } from "@workspace/api-zod";
 
 const router = Router();
 
@@ -147,7 +147,7 @@ function computeVerdict(data: {
 }
 
 router.post("/", async (req, res) => {
-  const parsed = SubmitCheckBody.safeParse(req.body);
+  const parsed = SubmitCheckBodyWithPlanMatch.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid input", details: parsed.error });
   }
@@ -184,7 +184,65 @@ router.post("/", async (req, res) => {
     // Non-fatal
   }
 
-  const { verdict, verdictReason, confidenceScore } = computeVerdict({
+  // ── Plan-match signal (server enforces invariants; client values are validated here) ─
+  let rawStatus = parsed.data.planMatchStatus ?? "NO_PLAN";
+  let planId = parsed.data.planId ?? null;
+  let planFlags: string[] = [];
+  let planForcedDowngrade: "REDUCE_RISK" | "NO_TRADE" | null = null;
+
+  // Enforce: MATCHED requires a valid, non-expired planId; coerce anything else to NO_PLAN
+  if (rawStatus === "MATCHED") {
+    if (!planId) {
+      rawStatus = "NO_PLAN"; // No planId supplied with MATCHED — treat as unplanned
+    } else {
+      try {
+        const [matchedPlan] = await db
+          .select({ createdAt: setupPlansTable.createdAt, expiresAt: setupPlansTable.expiresAt })
+          .from(setupPlansTable)
+          .where(eq(setupPlansTable.id, planId));
+
+        if (!matchedPlan) {
+          rawStatus = "NO_PLAN"; // Plan not found — coerce
+          planId = null;
+        } else if (matchedPlan.expiresAt < new Date()) {
+          rawStatus = "NO_PLAN"; // Plan is expired — coerce
+          planId = null;
+          planFlags.push("The referenced plan has expired. An expired plan is stale market analysis. It does not count as pre-commitment.");
+        } else {
+          // Plan is valid — run chase detection
+          const planAgeMs = Date.now() - matchedPlan.createdAt.getTime();
+          const planAgeMin = planAgeMs / 60000;
+          if (planAgeMin < 5 && sessionLossCount >= 1) {
+            planFlags.push(
+              `Chase signal: plan created only ${Math.round(planAgeMin)} minute(s) ago during an active losing streak. A plan created minutes after a loss — during emotional activation — is not calm pre-commitment. This is structural chase, regardless of what every slider says.`
+            );
+            planForcedDowngrade = "REDUCE_RISK";
+          }
+        }
+      } catch {
+        // DB error — fail safe: treat as NO_PLAN
+        rawStatus = "NO_PLAN";
+        planId = null;
+      }
+    }
+  }
+
+  const planMatchStatus = rawStatus;
+
+  // NO_PLAN and SKIPPED both enforce 50% risk cap
+  if (planMatchStatus === "NO_PLAN") {
+    planForcedDowngrade = "REDUCE_RISK";
+    planFlags.push(
+      "No pre-committed plan for this setup. This is the moment the amygdala invents a reason. Impulsive trades by definition weren't planned five minutes ago. Risk is automatically capped at 50%."
+    );
+  } else if (planMatchStatus === "SKIPPED") {
+    planForcedDowngrade = "REDUCE_RISK";
+    planFlags.push(
+      "Plan step skipped — no matching plan selected. Same structural constraint as an unplanned trade: risk is automatically capped at 50%."
+    );
+  }
+
+  const { verdict: baseVerdictFromPsych, verdictReason, confidenceScore } = computeVerdict({
     ...parsed.data,
     sessionLossCount,
     baselineAvgFocus,
@@ -192,6 +250,18 @@ router.post("/", async (req, res) => {
     baselineAvgClarity,
     hasBaseline,
   });
+
+  // Apply plan-match downgrade on top of psych verdict
+  let finalVerdict = baseVerdictFromPsych;
+  if (planForcedDowngrade) {
+    const ORDER = ["TRADE", "REDUCE_RISK", "NO_TRADE", "HARD_BLOCK"];
+    const currentIdx = ORDER.indexOf(finalVerdict);
+    const forceIdx = ORDER.indexOf(planForcedDowngrade);
+    if (forceIdx > currentIdx) finalVerdict = planForcedDowngrade;
+  }
+
+  const planReason = planFlags.length ? planFlags.join(" ") : null;
+  const combinedReason = [planReason, verdictReason].filter(Boolean).join(" — ");
 
   const [check] = await db
     .insert(checksTable)
@@ -204,9 +274,11 @@ router.post("/", async (req, res) => {
       urgeLevel: parsed.data.urgeLevel,
       decisionClarity: parsed.data.decisionClarity,
       patience: parsed.data.patience ?? null,
-      verdict,
-      verdictReason,
+      verdict: finalVerdict,
+      verdictReason: combinedReason || verdictReason,
       notes: parsed.data.notes ?? null,
+      planId,
+      planMatchStatus,
     })
     .returning();
 

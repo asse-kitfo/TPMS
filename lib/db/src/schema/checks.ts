@@ -16,6 +16,9 @@ export const checksTable = pgTable("checks", {
   verdict: text("verdict").notNull(),
   verdictReason: text("verdict_reason"),
   notes: text("notes"),
+  // Plan pre-commitment fields
+  planId: integer("plan_id"),
+  planMatchStatus: text("plan_match_status"), // MATCHED | NO_PLAN | SKIPPED
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

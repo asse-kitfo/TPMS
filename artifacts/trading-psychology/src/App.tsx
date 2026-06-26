@@ -14,6 +14,7 @@ import BehavioralAnalytics from "@/pages/analytics";
 import TradingRules from "@/pages/rules";
 import CBTJournal from "@/pages/cbt-journal";
 import SessionReplay from "@/pages/replay";
+import SetupPlans from "@/pages/plans";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ function Router() {
         <Route path="/rules" component={TradingRules} />
         <Route path="/cbt" component={CBTJournal} />
         <Route path="/replay" component={SessionReplay} />
+        <Route path="/plans" component={SetupPlans} />
         <Route component={NotFound} />
       </Switch>
     </Shell>

@@ -219,6 +219,45 @@ router.get("/emotion-breakdown", async (_req, res) => {
   return res.json({ byState: result, interferenceBreakdown });
 });
 
+// Plan-match outcomes: gate verdict and win rate segmented by whether a pre-committed plan existed
+router.get("/plan-match-outcomes", async (_req, res) => {
+  const checks = await db.select().from(checksTable).orderBy(desc(checksTable.createdAt));
+  const trades = await db.select().from(tradesTable).orderBy(desc(tradesTable.createdAt));
+
+  const matchedChecks = checks.filter((c) => c.planMatchStatus === "MATCHED");
+  const noPlanChecks = checks.filter((c) => c.planMatchStatus === "NO_PLAN");
+  const skippedChecks = checks.filter((c) => c.planMatchStatus === "SKIPPED");
+
+  // Attribute win rate at the check level: for each allowed check in the subset,
+  // look for a trade in the SAME session created AFTER the check. This avoids
+  // cross-contamination when a single session has checks in multiple plan-match statuses.
+  function getOutcomes(checkSubset: typeof checks) {
+    const blocked = checkSubset.filter((c) => c.verdict === "HARD_BLOCK" || c.verdict === "NO_TRADE").length;
+    const allowed = checkSubset.filter((c) => c.verdict === "TRADE" || c.verdict === "REDUCE_RISK");
+
+    let wins = 0;
+    let tradeCount = 0;
+    for (const check of allowed) {
+      const nextTrade = trades.find(
+        (t) => t.sessionId === check.sessionId && t.outcome !== null && t.createdAt >= check.createdAt
+      );
+      if (nextTrade) {
+        tradeCount++;
+        if (nextTrade.outcome === "WIN") wins++;
+      }
+    }
+    const winRate = tradeCount > 0 ? Math.round((wins / tradeCount) * 100) : null;
+    return { checkCount: checkSubset.length, tradeCount, winRate, blocked, allowed: allowed.length };
+  }
+
+  return res.json({
+    matched: getOutcomes(matchedChecks),
+    noPlan: getOutcomes(noPlanChecks),
+    skipped: getOutcomes(skippedChecks),
+    totalWithPlanData: matchedChecks.length + noPlanChecks.length + skippedChecks.length,
+  });
+});
+
 // Session Replay: returns ordered timeline of checks + trades for a session
 router.get("/session-replay", async (req, res) => {
   const sessionId = parseInt(req.query.sessionId as string, 10);

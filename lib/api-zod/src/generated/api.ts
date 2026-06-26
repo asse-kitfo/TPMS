@@ -9,6 +9,23 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Setup Plans
+ */
+export const CreateSetupPlanBody = zod.object({
+  asset: zod.string().min(1),
+  direction: zod.enum(["LONG", "SHORT", "NEUTRAL"]),
+  entryZone: zod.string().min(1),
+  stopLoss: zod.string().min(1),
+  takeProfit: zod.string().min(1),
+  setupGrade: zod.enum(["A_PLUS", "B", "C"]).default("A_PLUS"),
+  thesis: zod.string().min(1),
+  invalidationCondition: zod.string().min(1),
+  expiresInHours: zod.number().min(1).max(72).default(8),
+});
+
+export const PlanMatchStatusEnum = zod.enum(["MATCHED", "NO_PLAN", "SKIPPED"]);
+
+/**
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -103,6 +120,11 @@ export const SubmitCheckBody = zod.object({
   "patience": zod.number().min(1).max(submitCheckBodyPatienceMax).optional(),
   "notes": zod.string().optional(),
   "submissionDurationMs": zod.number().optional()
+})
+
+export const SubmitCheckBodyWithPlanMatch = SubmitCheckBody.extend({
+  "planId": zod.number().optional(),
+  "planMatchStatus": PlanMatchStatusEnum.optional(),
 })
 
 

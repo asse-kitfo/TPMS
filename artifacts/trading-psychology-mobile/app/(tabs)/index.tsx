@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { Icon } from "@/components/Icon";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, Session } from "@/lib/api";
+import { api, Session, SetupPlan } from "@/lib/api";
 import {
   loadMaxLosses, saveMaxLosses, addEmotionEntry, loadEmotionLog,
   EmotionLogEntry, TraderArchetype, loadArchetype, saveArchetype,
@@ -418,6 +418,52 @@ function StatsRow() {
   );
 }
 
+/* ── Plans Banner ────────────────────────────────────────── */
+function PlansBanner() {
+  const colors = useColors();
+  const { data: plans } = useQuery<SetupPlan[]>({
+    queryKey: ["setup-plans"],
+    queryFn: api.listSetupPlans,
+    refetchInterval: 60000,
+  });
+
+  const now = Date.now();
+  const activePlans = plans?.filter(p => new Date(p.expiresAt).getTime() > now) ?? [];
+  const soonExpiring = activePlans.filter(p => new Date(p.expiresAt).getTime() - now < 2 * 3600 * 1000);
+  const hasPlans = activePlans.length > 0;
+
+  const getSmallestExpiry = () => {
+    if (!activePlans.length) return null;
+    const sorted = [...activePlans].sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime());
+    const ms = new Date(sorted[0].expiresAt).getTime() - now;
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    if (h === 0) return `${m}m`;
+    return `${h}h ${m}m`;
+  };
+
+  const bannerColor = !hasPlans ? "#ef4444" : soonExpiring.length > 0 ? "#f59e0b" : "#22c55e";
+  const bannerBg = !hasPlans ? "#ef444410" : soonExpiring.length > 0 ? "#f59e0b10" : "#22c55e10";
+  const bannerBorder = !hasPlans ? "#ef444430" : soonExpiring.length > 0 ? "#f59e0b30" : "#22c55e30";
+
+  const iconName = !hasPlans ? "alert-triangle" : soonExpiring.length > 0 ? "clock" : "check-square";
+  const message = !hasPlans
+    ? "No live plans — build your plan library during calm moments. The Trade Gate will match against them."
+    : soonExpiring.length > 0
+    ? `${soonExpiring.length} plan${soonExpiring.length !== 1 ? "s" : ""} expiring soon (soonest: ${getSmallestExpiry()})`
+    : `${activePlans.length} active plan${activePlans.length !== 1 ? "s" : ""} — soonest expires in ${getSmallestExpiry()}`;
+
+  return (
+    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: bannerBorder, backgroundColor: bannerBg }}>
+      <Icon name={iconName} size={15} color={bannerColor} style={{ marginTop: 1 }} />
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: bannerColor, fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Setup Plans</Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 16 }}>{message}</Text>
+      </View>
+    </View>
+  );
+}
+
 /* ── Hub Screen ──────────────────────────────────────────── */
 export default function HubScreen() {
   const colors = useColors();
@@ -520,6 +566,9 @@ export default function HubScreen() {
             Prepare your mind before the market opens
           </Text>
         </View>
+
+        {/* Plans Banner */}
+        <PlansBanner />
 
         {/* Archetype activation */}
         <Card>
