@@ -1,0 +1,222 @@
+# ApexTerm — Real-Time Trading Psychology App
+## Build Specification for AI Development Agent
+
+---
+
+## 1. What This App Is (Read This First)
+
+ApexTerm is a **real-time emotional-awareness companion for active traders**. It does **not** place trades, read trades, or connect to any broker or trading platform (MT5 or otherwise). The trader executes 100% manually in their own trading platform. ApexTerm's only job is to keep the trader **conscious of their own emotional state while a trade is open**, because the core problem it solves is this:
+
+> Traders already know their strategy and their plan before entering a trade. The failure point is *after* entry — once a position is live, the emotional brain (amygdala) gradually takes over decision-making, and the trader has no reliable way to notice this happening to themselves in real time. ApexTerm is the outside observer that checks in on them at intervals, names the emotional state, and runs a fast regulation technique (breathing) when needed — so the trader can return to deliberate, plan-based thinking before they act.
+
+This is **not** a trade-signal app, **not** a risk-management/sizing app, and **not** an execution-monitoring app. It never sees price. It never sees P&L. Its entire surface area is: sessions, a lightweight trade plan note, scheduled emotional check-ins, an SOS button, breathing exercises, and a journal that correlates emotional state with outcome.
+
+Build the simplest version that does this loop well. Do not add features beyond what's specified below without confirming first.
+
+---
+
+## 2. Tech Stack
+
+- **Mobile app:** React Native + Expo + Expo Router
+- **State/data fetching:** TanStack Query
+- **Local persistence (for offline-first check-ins):** AsyncStorage, with a sync queue to the backend
+- **Backend:** Node.js + Express 5
+- **Database:** PostgreSQL + Drizzle ORM
+- **Validation:** Zod, shared types between client/server
+- **Push notifications:** Expo Notifications (local scheduled notifications are sufficient — no need for a push server, since all timing logic can run on-device while the app/session is active; use local notification scheduling so check-ins fire even if the app is backgrounded)
+- **Haptics:** expo-haptics for breathing exercise pacing and SOS confirmation
+
+No web app version is needed for this redesign — mobile only.
+
+---
+
+## 3. Data Model
+
+Four tables only. Keep this small.
+
+```ts
+// sessions — one per trading day
+sessions: {
+  id: uuid,
+  startedAt: timestamp,
+  endedAt: timestamp | null,
+  lossCount: integer (default 0),
+  notes: text | null,
+}
+
+// trades — one per position taken
+trades: {
+  id: uuid,
+  sessionId: uuid (FK -> sessions.id),
+  asset: text,
+  direction: enum('long', 'short'),
+  entryPrice: text | null,        // optional, trader-typed, not verified
+  stopLoss: text | null,
+  invalidationCondition: text,    // required — one sentence: what proves the idea wrong
+  enteredAt: timestamp,
+  closedAt: timestamp | null,
+  outcome: enum('win', 'loss', 'breakeven') | null,
+  worstStateDuringTrade: enum('calm', 'watching', 'urge', 'anxious') | null, // derived from checkins, cached for fast analytics
+  sosTapCount: integer (default 0),
+  postTradeNote: text | null,
+}
+
+// checkins — one per emotional check-in during a trade
+checkins: {
+  id: uuid,
+  tradeId: uuid (FK -> trades.id),
+  occurredAt: timestamp,
+  state: enum('calm', 'watching', 'urge', 'anxious'),
+  triggeredBy: enum('scheduled', 'manual_sos'),
+  breathingCompleted: boolean (default false),
+}
+
+// rules — static personal checklist, NOT part of any gate, just reference
+rules: {
+  id: uuid,
+  text: text,
+  active: boolean (default true),
+}
+```
+
+No `verdicts`, no `scores`, no `setupGrade`, no slider fields. None of that survives in this version.
+
+---
+
+## 4. Screens (Exactly 4 + Settings)
+
+### Screen 1 — Hub (Home)
+- One button: **Start Session** (if no session active) or **End Session** (if one is active).
+- If a session is active and no trade is open: show "Log a trade" button → opens Screen 2.
+- If a trade is currently open: show the **In Trade** status card (time elapsed, asset, direction) with a button to jump straight into Screen 3.
+- Bottom: simple stats row — today's loss count, current streak of plan-followed days (optional, nice-to-have, not blocking).
+
+### Screen 2 — Quick Plan (logging a new trade)
+A short form, must take under 15 seconds to fill out. Fields:
+- Asset (text input)
+- Direction (Long / Short toggle)
+- Invalidation condition (text input, required) — placeholder: *"What would prove this trade idea wrong?"*
+- Entry price / Stop loss (optional text fields, for reference only, not validated against anything)
+- One button: **Entering Now** → creates the `trades` row with `enteredAt = now()`, navigates to Screen 3, and starts the check-in scheduler.
+
+This is **not a gate**. There's no checklist to complete, no breathing required before submission, no blocking logic. It's a 10-second log.
+
+### Screen 3 — In Trade (the core screen)
+This is the screen the trader lives in while a position is open.
+
+**Display (always visible, no live P&L, ever):**
+- Asset + direction
+- Time elapsed since entry
+- The invalidation condition, shown verbatim, always visible at the top
+- Countdown to next scheduled check-in
+
+**Check-in modal (appears automatically per the cadence in Section 5, or when manually triggered):**
+- Prompt: *"Right now:"*
+- Four large tap targets: 🙂 Calm · 😐 Watching closely · 😬 Urge to act · 😰 Anxious
+- Tapping any option logs a `checkins` row immediately and triggers the response logic in Section 5.
+
+**SOS button:**
+- Always visible, large, labeled **"I want to act"**
+- Tapping it opens the same check-in modal pre-filtered to start from the urge/anxious branch (skip straight to: show invalidation condition + breathing).
+
+**Trade Closed button:**
+- Always visible at the bottom.
+- Tapping it opens a tiny form: outcome (Win / Loss / Breakeven), optional one-line note.
+- On submit: sets `closedAt`, computes `worstStateDuringTrade` from that trade's checkins (rank: anxious > urge > watching > calm), updates `sosTapCount`, and if outcome was a loss, increments `sessions.lossCount`. Navigates back to Hub.
+
+### Screen 4 — Journal & Insight
+- List of closed trades, each row showing: asset, outcome, and a small inline strip of emoji representing the checkin sequence for that trade (e.g. 🙂 🙂 😐 😬 🙂).
+- Tapping a trade opens detail: full checkin timeline with timestamps, the invalidation condition, post-trade note.
+- One chart at the top of this screen, nothing more: **win rate grouped by worst emotional state hit during the trade.** Four bars: Calm / Watching / Urge / Anxious, each showing win % from trades where that was the worst state recorded. This is the proof mechanism — the trader's own data showing whether staying calm correlates with winning.
+
+### Settings (minor screen, not core)
+- Rules list (add/edit/remove personal trading rules — plain text list, reference only, no gate logic attached)
+- Check-in interval base settings (default 5 minutes — see Section 5; allow trader to adjust the base interval if they want, e.g. 3/5/10 min)
+- Notification permissions toggle
+
+---
+
+## 5. Check-In Cadence — State Machine (This Is the Core Logic)
+
+While a trade is open, schedule a local notification for the next check-in. After every check-in (scheduled or manual), reschedule the *next* one based on the answer just given:
+
+| Last answer | Response shown | Next check-in interval |
+|---|---|---|
+| 🙂 Calm | Log silently, dismiss, no interruption | 10 minutes |
+| 😐 Watching closely | One short line: *"Watching closely usually means wanting it to move. Let the plan work."* | 5 minutes |
+| 😬 Urge to act | Run **60-second box breathing** (4-4-4-4 cycle, repeat for 60 seconds, animated visual timer, haptic pulse on each phase change) → then show the invalidation condition again with the line: *"Has this actually happened? If not, do nothing."* | 2 minutes |
+| 😰 Anxious | Run the same 60-second box breathing → then show one grounding question: *"Is this fear about this specific trade, or about money in general right now?"* (no input needed, just a reflective prompt, dismiss button) | 2 minutes |
+
+Manual SOS taps always run the 😬/😰 branch (breathing + invalidation re-check) regardless of what the last scheduled answer was, and also reset the next-check-in timer to 2 minutes.
+
+When a trade is closed, cancel all pending scheduled notifications for that trade.
+
+If the app is closed/backgrounded, the scheduled local notification must still fire (use Expo's scheduled local notifications, not a server-push dependency, so this works offline and without a server round trip).
+
+---
+
+## 6. Breathing Exercise Spec
+
+Single reusable component, used in the 😬/😰 branches above:
+- Box breathing: Inhale 4s → Hold 4s → Exhale 4s → Hold 4s = one 16-second cycle
+- Repeat for ~60 seconds total (about 4 cycles)
+- Visual: a simple expanding/contracting circle or bar synced to each phase, with the phase name as text ("Inhale," "Hold," "Exhale," "Hold")
+- Haptic: a light pulse on each phase transition (expo-haptics)
+- No skip button during the cycle — let it complete, but don't make it punitive; 60 seconds is short by design since the trader has a live position open and needs to get back to it quickly.
+
+---
+
+## 7. API Endpoints (Backend)
+
+Keep this minimal — mostly CRUD, no scoring engine.
+
+```
+POST   /sessions                  - start a session
+PATCH  /sessions/:id              - end a session
+GET    /sessions/:id              - get session detail
+
+POST   /trades                    - create a trade (quick plan submit)
+PATCH  /trades/:id                - update on close (outcome, note, computed fields)
+GET    /trades                    - list trades (for journal), supports ?sessionId=
+GET    /trades/:id                - trade detail with checkins joined
+
+POST   /checkins                  - log a check-in (tradeId, state, triggeredBy)
+GET    /checkins?tradeId=         - list checkins for a trade
+
+GET    /rules                     - list rules
+POST   /rules                     - add a rule
+PATCH  /rules/:id                 - edit/deactivate a rule
+
+GET    /analytics/win-rate-by-state   - aggregated win rate grouped by worst state, for Journal chart
+```
+
+No `/verdict`, no `/score`, no broker integration endpoints. Nothing in this version touches MT5 or any market data API.
+
+---
+
+## 8. Explicit Non-Goals (Do Not Build These)
+
+- No connection to MT5, any broker, or any market data feed of any kind.
+- No live P&L display anywhere in the app.
+- No multi-step pre-trade gate, no rules checklist blocking trade entry, no readiness score, no sliders, no setup grading (A+/B/C), no "STATE ALIGNED / HARD BLOCK" verdict engine. All of that is intentionally removed from this version.
+- No execution monitoring, no detection of stop-loss changes, no interference tracking against MT5 — the app cannot see MT5 at all, so don't build placeholders that imply it does.
+- No financial advice, trade signals, or directional language anywhere in copy. All language stays psychological/observational (e.g. "Calm," "Urge to act") never directional (e.g. never "Buy," "Hold," "Exit now").
+
+---
+
+## 9. Disclaimer (Required, First Launch)
+
+Show once, store acceptance persistently:
+
+> "ApexTerm is a psychological awareness tool for traders. It does not provide financial advice, trade signals, market analysis, or execution control. All trading decisions and execution are performed solely by the trader on their own trading platform. ApexTerm only logs and reflects the trader's self-reported emotional state."
+
+---
+
+## 10. Build Order (Suggested Phases)
+
+1. **Phase 1:** Data model + backend CRUD for sessions/trades/checkins. Hub screen + Quick Plan screen, basic create/close trade flow with no notifications yet (manual check-in button only).
+2. **Phase 2:** In Trade screen fully built — check-in modal, SOS button, breathing component, the state-machine cadence logic running locally with Expo scheduled notifications.
+3. **Phase 3:** Journal & Insight screen — trade list, checkin timeline strip, win-rate-by-state chart.
+4. **Phase 4:** Settings (rules list, interval config), disclaimer screen, polish/offline sync queue for checkins logged while offline.
+
+Do not build Phase 3 or 4 features into Phase 1/2 screens — keep each phase shippable and testable on its own.

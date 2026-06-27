@@ -21,29 +21,16 @@ export default function TabLayout() {
         tabBarLabelStyle: { fontFamily: "Inter_500Medium", fontSize: 10 },
         tabBarIconStyle: { marginTop: 4 },
         tabBarBackground: () =>
-          isIOS ? (
-            <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
-          ) : isWeb ? (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
-          ) : null,
+          isIOS ? <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
+          : isWeb ? <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
+          : null,
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{ title: "Hub", tabBarIcon: ({ color }) => <Icon name="home" size={22} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="gate"
-        options={{ title: "Plan", tabBarIcon: ({ color }) => <Icon name="edit-2" size={22} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="monitor"
-        options={{ title: "In Trade", tabBarIcon: ({ color }) => <Icon name="activity" size={22} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="journal"
-        options={{ title: "Journal", tabBarIcon: ({ color }) => <Icon name="list" size={22} color={color} /> }}
-      />
+      <Tabs.Screen name="index" options={{ title: "Hub", tabBarIcon: ({ color }) => <Icon name="home" size={22} color={color} /> }} />
+      <Tabs.Screen name="gate" options={{ title: "Plan", tabBarIcon: ({ color }) => <Icon name="edit-2" size={22} color={color} /> }} />
+      <Tabs.Screen name="monitor" options={{ title: "In Trade", tabBarIcon: ({ color }) => <Icon name="activity" size={22} color={color} /> }} />
+      <Tabs.Screen name="journal" options={{ title: "Journal", tabBarIcon: ({ color }) => <Icon name="list" size={22} color={color} /> }} />
+      <Tabs.Screen name="settings" options={{ title: "Settings", tabBarIcon: ({ color }) => <Icon name="sliders" size={22} color={color} /> }} />
       <Tabs.Screen name="thought" options={{ href: null }} />
       <Tabs.Screen name="rules" options={{ href: null }} />
     </Tabs>
