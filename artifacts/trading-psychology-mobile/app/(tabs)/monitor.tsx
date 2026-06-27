@@ -15,7 +15,7 @@ import {
   loadCheckInInterval, computeWorstState,
   ActiveTrade, TradeCheckIn, CheckInState, TradeOutcome, CheckInIntervalBase,
 } from "@/lib/storage";
-import { scheduleCheckInNotification, cancelAllCheckInNotifications } from "@/lib/notifications";
+import { scheduleTradeNotifications, cancelAllCheckInNotifications, STALE_TRADE_HOURS } from "@/lib/notifications";
 
 /* ── Check-in states ─────────────────────────────────────────────────────── */
 const STATES: { key: CheckInState; emoji: string; label: string; color: string }[] = [
@@ -160,6 +160,7 @@ export default function InTradeScreen() {
   const [lastState, setLastState] = useState<CheckInState | null>(null);
   const [elapsed, setElapsed] = useState("");
   const [countdown, setCountdown] = useState("");
+  const [isStale, setIsStale] = useState(false);
   const [outcome, setOutcome] = useState<TradeOutcome>("win");
   const [closingNote, setClosingNote] = useState("");
   const [closing, setClosing] = useState(false);
@@ -180,9 +181,10 @@ export default function InTradeScreen() {
     return () => {};
   }, [reload]));
 
-  // Ticker: elapsed + countdown + auto-trigger check-in
+  // Ticker: elapsed + countdown + auto-trigger check-in + stale detection
   useEffect(() => {
     if (!trade) return;
+    const STALE_MS = STALE_TRADE_HOURS * 60 * 60 * 1000;
     const tick = () => {
       setElapsed(formatElapsed(trade.startedAt));
       const ms = new Date(trade.nextCheckInAt).getTime() - Date.now();
@@ -191,6 +193,11 @@ export default function InTradeScreen() {
         setMode("CHECK_IN");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       }
+      // Stale: last activity (last check-in or trade start) > 4 hours ago
+      const lastActivity = trade.checkIns.length > 0
+        ? trade.checkIns[trade.checkIns.length - 1].occurredAt
+        : trade.startedAt;
+      setIsStale(Date.now() - new Date(lastActivity).getTime() > STALE_MS);
     };
     tick();
     const id = setInterval(tick, 1000);
