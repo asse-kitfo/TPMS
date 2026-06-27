@@ -24,6 +24,57 @@ const EMOTION_LOG_KEY = "apexterm:emotionLog";
 const ARCHETYPE_KEY = "apexterm:archetype";
 const ACTIVE_TRADE_KEY = "apexterm:activeTrade";
 const COMPLETED_TRADES_KEY = "apexterm:completedTrades";
+const LOCAL_SESSION_KEY = "apexterm:localSession";
+
+/* ── Local Session (no server required) ───────────────────────────────────── */
+export interface LocalSession {
+  id: string;
+  startedAt: string;
+  endedAt?: string;
+  maxLosses: number;
+  lossCount: number;
+}
+
+export async function loadLocalSession(): Promise<LocalSession | null> {
+  try {
+    const stored = await AsyncStorage.getItem(LOCAL_SESSION_KEY);
+    if (stored) {
+      const s: LocalSession = JSON.parse(stored);
+      if (!s.endedAt) return s;
+    }
+  } catch {}
+  return null;
+}
+
+export async function startLocalSession(maxLosses: number): Promise<LocalSession> {
+  const session: LocalSession = { id: generateId(), startedAt: new Date().toISOString(), maxLosses, lossCount: 0 };
+  await AsyncStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(session));
+  return session;
+}
+
+export async function endLocalSession(): Promise<void> {
+  try {
+    const stored = await AsyncStorage.getItem(LOCAL_SESSION_KEY);
+    if (stored) {
+      const s: LocalSession = JSON.parse(stored);
+      s.endedAt = new Date().toISOString();
+      await AsyncStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(s));
+    }
+  } catch {}
+}
+
+export async function incrementLossCount(): Promise<LocalSession | null> {
+  try {
+    const stored = await AsyncStorage.getItem(LOCAL_SESSION_KEY);
+    if (stored) {
+      const s: LocalSession = JSON.parse(stored);
+      s.lossCount = (s.lossCount ?? 0) + 1;
+      await AsyncStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(s));
+      return s;
+    }
+  } catch {}
+  return null;
+}
 
 export async function loadRules(): Promise<Rule[]> {
   try {
