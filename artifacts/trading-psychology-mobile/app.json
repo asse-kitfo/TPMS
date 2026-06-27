@@ -14,9 +14,18 @@
       "backgroundColor": "#09090b"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.apexterm.trading"
     },
-    "android": {},
+    "android": {
+      "package": "com.apexterm.trading",
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -28,7 +37,16 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#06b6d4",
+          "defaultChannel": "checkins",
+          "sounds": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

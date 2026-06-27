@@ -17,7 +17,6 @@ import { hasAcceptedDisclaimer, acceptDisclaimer } from "@/lib/storage";
 import { setupNotificationHandler } from "@/lib/notifications";
 
 SplashScreen.preventAutoHideAsync();
-setupNotificationHandler();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 15_000, retry: 1 } },
@@ -75,6 +74,7 @@ export default function RootLayout() {
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
       hasAcceptedDisclaimer().then(accepted => setDisclaimerNeeded(!accepted));
+      setupNotificationHandler(); // async, fire-and-forget; silently no-ops in Expo Go
     }
   }, [fontsLoaded, fontError]);
 
