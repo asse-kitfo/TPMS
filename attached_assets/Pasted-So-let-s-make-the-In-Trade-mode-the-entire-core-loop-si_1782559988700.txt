@@ -1,0 +1,55 @@
+So let's make the "In Trade" mode the entire core loop, simple and tight.
+
+The core loop: Check-In → Detect → Intervene → Confirm
+
+1. Check-ins every 5 minutes while a trade is open Not a generic notification — a 1-tap emotional state check, fast enough that you'll actually do it instead of swiping it away:
+
+"Right now: 🙂 Calm · 😐 Watching closely · 😬 Urge to act · 😰 Anxious"
+
+Four options, one tap, two seconds of friction. That's it. This trains the habit of naming the state, which is itself most of what "consciousness" of an emotional state means — most people don't even pause to ask, they just act.
+
+2. The response scales to the answer — don't treat every tap the same
+
+
+
+
+
+🙂 Calm → app just logs it silently, no interruption, dismiss. Don't punish good behavior with friction.
+
+
+
+😐 Watching closely → a single gentle line appears: "Watching = wanting it to move. Let the plan work. Check again in 5." No exercise needed yet — just naming it back is often enough to break the spiral early.
+
+
+
+😬 Urge to act → this triggers a 60-second box breathing cycle (4-4-4-4, faster than the pre-trade 4-7-8 since you're mid-position and need something quick, not a meditation session) followed by: "What does your plan say? Re-read it before touching anything in MT5." — and shows the invalidation condition again.
+
+
+
+😰 Anxious → same breathing cycle, but afterward instead of "go re-read your plan," ask one grounding question: "Is this fear about THIS trade, or about money in general right now?" — anxiety often isn't about the specific position, and naming that distinction defuses a lot of the urge to act on it.
+
+This is the "graduated" version of what you had in the pre-trade gate, just compressed and sped up for mid-trade use, where you need seconds not minutes.
+
+3. Escalating cadence — this is the part that makes it actually adaptive Don't keep it flat at every 5 minutes regardless of state. Make the next check-in interval depend on the last answer:
+
+
+
+
+
+Last answer was 🙂 → next check-in in 10 minutes (don't nag someone who's fine)
+
+
+
+Last answer was 😐 → next check-in in 5 minutes (status quo)
+
+
+
+Last answer was 😬 or 😰 → next check-in in 2 minutes (you just showed signs of dysregulation — the app should lean in, not wait)
+
+This single rule makes the app feel like it's actually paying attention to you, not just firing on a dumb timer — and it concentrates the "friction" exactly where the risk is, instead of spamming someone who's calm and skipping someone who's spiraling.
+
+4. Close the trade, close the loop When you mark "Trade Closed" and log the outcome, the app shows you your own check-in timeline for that trade — a tiny strip like: 🙂🙂😐😬🙂 (Win) — so you can see when in the trade the pressure spiked and whether you held the plan anyway. Over weeks, the Behavioral Analytics page (which you've already got) becomes genuinely powerful: it can show win rate by worst emotional state hit during the trade, not just the state at entry. That's the data that actually proves to you, in your own history, whether staying calm mid-trade correlates with winning — which is the belief you're trying to build in yourself.
+
+Why this is the practical, simple version
+
+It's one mechanism — a check-in, every few minutes, with four buttons — not five separate features. The intelligence is entirely in how the cadence and response scale with your answer, not in adding more screens. And it directly does what you said you need: "the app has to make the trader aware of its own emotional condition without [requiring] the app [to do it] in realtime" — except the honest version is the app has to do exactly that, because that's the one thing a human can't reliably do for themselves under stress, and it's the one thing software can do tirelessly and on schedule.

@@ -1,468 +1,566 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  Platform,
-  Switch,
-  Animated,
-  TouchableOpacity,
+  View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform, Animated, TextInput, AppState,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { Icon } from "@/components/Icon";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, Session, Trade, SetupGrade, TradeOutcome, InterferenceType } from "@/lib/api";
+import { useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { useColors } from "@/hooks/useColors";
-import { Card, Button, SectionLabel, OptionChip, EmptyState, webTop, webBottom } from "@/components/UI";
+import { Card, Button, SectionLabel, EmptyState, webTop, webBottom } from "@/components/UI";
+import { Icon } from "@/components/Icon";
+import {
+  loadActiveTrade, saveActiveTrade, saveCompletedTrade, generateId,
+  ActiveTrade, TradeCheckIn, CheckInState, nextCheckInTimestamp, TradeOutcomeLocal,
+} from "@/lib/storage";
 
-const PAIRS = ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD", "NZD/USD", "EUR/GBP", "XAU/USD", "Other"];
-const GRADES: SetupGrade[] = ["A_PLUS", "B", "C"];
-const GRADE_LABELS: Record<SetupGrade, string> = { A_PLUS: "A+", B: "B", C: "C" };
-
-const PAUSE_QUESTIONS = [
-  "Is this truly an A+ setup — or am I rationalizing?",
-  "Have I run the Gate check for this setup?",
-  "Is my stop loss defined and non-negotiable?",
-  "Would I take this trade if I hadn't just had a loss?",
-  "Am I in a calm, analytical state right now?",
+/* ── Check-in state definitions ─────────────────────────────────────────── */
+const CHECK_IN_STATES: { key: CheckInState; emoji: string; label: string; color: string }[] = [
+  { key: "CALM", emoji: "🙂", label: "Calm", color: "#22c55e" },
+  { key: "WATCHING", emoji: "😐", label: "Watching closely", color: "#f59e0b" },
+  { key: "URGE", emoji: "😬", label: "Urge to act", color: "#f97316" },
+  { key: "ANXIOUS", emoji: "😰", label: "Anxious", color: "#ef4444" },
 ];
 
-const EMOTIONAL_STATES = [
-  { id: "CALM", label: "Calm", color: "#22c55e" },
-  { id: "FOCUSED", label: "Focused", color: "#22d3ee" },
-  { id: "ANXIOUS", label: "Anxious", color: "#f97316" },
-  { id: "PRESSURED", label: "Pressured", color: "#f59e0b" },
-  { id: "OVERCONFIDENT", label: "Overconfident", color: "#a855f7" },
-  { id: "URGE", label: "Urge-Driven", color: "#ef4444" },
-];
-
-const POST_TRADE_EMOTIONS = [
-  { id: "CALM", label: "Calm", color: "#22c55e" },
-  { id: "RELIEVED", label: "Relieved", color: "#22d3ee" },
-  { id: "DISAPPOINTED", label: "Disappointed", color: "#6366f1" },
-  { id: "ANGRY", label: "Angry", color: "#ef4444" },
-  { id: "EXCITED", label: "Excited", color: "#eab308" },
-  { id: "NEUTRAL", label: "Neutral", color: "#71717a" },
-  { id: "URGE_REVENGE", label: "Urge to Revenge", color: "#ef4444" },
-];
-
-function PauseProtocol({ onComplete, onCancel }: { onComplete: (emotionState: string) => void; onCancel: () => void }) {
+/* ── Box breathing 4-4-4-4 (60 seconds) ─────────────────────────────────── */
+function BoxBreathing({ onComplete }: { onComplete: () => void }) {
   const colors = useColors();
-  const [countdown, setCountdown] = useState(20);
-  const [questionIdx, setQuestionIdx] = useState(0);
-  const [emotionState, setEmotionState] = useState("CALM");
-  const [pauseComplete, setPauseComplete] = useState(false);
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  type Phase = "INHALE" | "HOLD_IN" | "EXHALE" | "HOLD_OUT";
+  const PHASES: { phase: Phase; label: string; duration: number }[] = [
+    { phase: "INHALE", label: "Breathe In", duration: 4 },
+    { phase: "HOLD_IN", label: "Hold", duration: 4 },
+    { phase: "EXHALE", label: "Breathe Out", duration: 4 },
+    { phase: "HOLD_OUT", label: "Hold", duration: 4 },
+  ];
+  const TOTAL_SECONDS = 60;
+
+  const [phaseIdx, setPhaseIdx] = useState(0);
+  const [phaseTimer, setPhaseTimer] = useState(4);
+  const [totalLeft, setTotalLeft] = useState(TOTAL_SECONDS);
+  const scaleAnim = useRef(new Animated.Value(0.7)).current;
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const phase = PHASES[phaseIdx];
+  const ringColor = phase.phase === "INHALE" ? "#3b82f6" : phase.phase === "HOLD_IN" ? "#22d3ee" : phase.phase === "EXHALE" ? "#22c55e" : "#a855f7";
 
   useEffect(() => {
-    Animated.timing(progressAnim, { toValue: 1, duration: 20000, useNativeDriver: false }).start();
+    if (phase.phase === "INHALE") {
+      animRef.current = Animated.timing(scaleAnim, { toValue: 1, duration: 4000, useNativeDriver: true });
+    } else if (phase.phase === "EXHALE") {
+      animRef.current = Animated.timing(scaleAnim, { toValue: 0.65, duration: 4000, useNativeDriver: true });
+    } else {
+      animRef.current = null;
+    }
+    animRef.current?.start();
+    return () => animRef.current?.stop();
+  }, [phaseIdx]);
+
+  useEffect(() => {
+    let pTimer = PHASES[0].duration;
+    let pIdx = 0;
+    let total = TOTAL_SECONDS;
+
     const interval = setInterval(() => {
-      setCountdown(c => {
-        if (c <= 1) {
-          clearInterval(interval);
-          setPauseComplete(true);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          return 0;
-        }
-        if ((20 - c + 1) % 4 === 0) {
-          setQuestionIdx(q => (q + 1) % PAUSE_QUESTIONS.length);
-        }
-        return c - 1;
-      });
+      total -= 1;
+      setTotalLeft(total);
+
+      if (total <= 0) {
+        clearInterval(interval);
+        onComplete();
+        return;
+      }
+
+      pTimer -= 1;
+      setPhaseTimer(pTimer);
+      if (pTimer <= 0) {
+        pIdx = (pIdx + 1) % PHASES.length;
+        pTimer = PHASES[pIdx].duration;
+        setPhaseIdx(pIdx);
+        setPhaseTimer(pTimer);
+      }
     }, 1000);
+
     return () => clearInterval(interval);
   }, []);
 
-  const progressWidth = progressAnim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] });
+  const progress = (TOTAL_SECONDS - totalLeft) / TOTAL_SECONDS;
 
   return (
-    <Card style={{ gap: 16 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: countdown > 0 ? "#f59e0b" : "#22c55e" }} />
-        <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_600SemiBold" }}>
-          {countdown > 0 ? `Mandatory Pause — ${countdown}s` : "Pause Complete"}
-        </Text>
-      </View>
+    <View style={{ alignItems: "center", gap: 20, paddingVertical: 8 }}>
+      <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>
+        Box breathing · {totalLeft}s remaining
+      </Text>
 
       {/* Progress bar */}
-      <View style={{ height: 4, backgroundColor: colors.secondary, borderRadius: 2, overflow: "hidden" }}>
-        <Animated.View style={{ height: "100%", width: progressWidth, backgroundColor: pauseComplete ? "#22c55e" : "#f59e0b", borderRadius: 2 }} />
+      <View style={{ width: "100%", height: 3, backgroundColor: colors.secondary, borderRadius: 2, overflow: "hidden" }}>
+        <View style={{ width: `${progress * 100}%` as any, height: "100%", backgroundColor: ringColor, borderRadius: 2 }} />
       </View>
 
-      {/* Rotating question */}
-      {!pauseComplete && (
-        <View style={{ padding: 14, borderRadius: 10, backgroundColor: "#f59e0b08", borderWidth: 1, borderColor: "#f59e0b20", minHeight: 72, justifyContent: "center" }}>
-          <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>
-            Reflect on this
-          </Text>
-          <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_500Medium", lineHeight: 22 }}>
-            {PAUSE_QUESTIONS[questionIdx]}
-          </Text>
-        </View>
-      )}
+      <Animated.View style={{
+        width: 120, height: 120, borderRadius: 60,
+        borderWidth: 3, borderColor: ringColor,
+        backgroundColor: `${ringColor}18`,
+        alignItems: "center", justifyContent: "center",
+        transform: [{ scale: scaleAnim }],
+      }}>
+        <Text style={{ color: ringColor, fontSize: 32, fontFamily: "Inter_700Bold" }}>{phaseTimer}</Text>
+        <Text style={{ color: ringColor, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>{phase.label}</Text>
+      </Animated.View>
 
-      {/* Emotion state after pause */}
-      {pauseComplete && (
-        <View style={{ gap: 10 }}>
-          <View style={{ padding: 12, borderRadius: 10, backgroundColor: "#22c55e10", borderWidth: 1, borderColor: "#22c55e30" }}>
-            <Text style={{ color: "#22c55e", fontSize: 13, fontFamily: "Inter_600SemiBold" }}>
-              Pause complete. How is your emotional state right now?
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        {PHASES.map((p, i) => (
+          <View key={p.phase} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: phaseIdx === i ? `${ringColor}60` : "transparent", backgroundColor: phaseIdx === i ? `${ringColor}15` : "transparent" }}>
+            <Text style={{ color: phaseIdx === i ? ringColor : colors.mutedForeground + "60", fontSize: 10, fontFamily: "Inter_600SemiBold" }}>
+              {p.phase === "INHALE" ? "IN·4" : p.phase === "HOLD_IN" ? "HOLD·4" : p.phase === "EXHALE" ? "OUT·4" : "HOLD·4"}
             </Text>
           </View>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {EMOTIONAL_STATES.map(e => (
-              <TouchableOpacity
-                key={e.id} activeOpacity={0.8} onPress={() => { setEmotionState(e.id); Haptics.selectionAsync(); }}
-                style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: emotionState === e.id ? e.color : colors.border, backgroundColor: emotionState === e.id ? `${e.color}18` : colors.secondary }}
-              >
-                <Text style={{ color: emotionState === e.id ? e.color : colors.mutedForeground, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>{e.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {(emotionState === "URGE" || emotionState === "ANXIOUS") && (
-            <View style={{ padding: 12, borderRadius: 10, backgroundColor: "#ef444410", borderWidth: 1, borderColor: "#ef444430" }}>
-              <Text style={{ color: "#ef4444", fontSize: 12, fontFamily: "Inter_600SemiBold", marginBottom: 4 }}>
-                High-risk state detected
-              </Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 }}>
-                You are in a {emotionState === "URGE" ? "compulsive urge" : "anxious"} state. Run the Gate check first. Consider 4-7-8 breathing before this trade.
-              </Text>
-            </View>
-          )}
-
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Button label="Cancel" variant="ghost" onPress={onCancel} style={{ flex: 1 }} />
-            <Button label="Lock In Trade →" onPress={() => onComplete(emotionState)} style={{ flex: 2 }} />
-          </View>
-        </View>
-      )}
-
-      {!pauseComplete && (
-        <TouchableOpacity onPress={onCancel} style={{ alignItems: "center", paddingVertical: 4 }}>
-          <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_500Medium" }}>Cancel</Text>
-        </TouchableOpacity>
-      )}
-    </Card>
+        ))}
+      </View>
+    </View>
   );
 }
 
-export default function MonitorScreen() {
+/* ── Countdown display ───────────────────────────────────────────────────── */
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "Now";
+  const totalSeconds = Math.ceil(ms / 1000);
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  if (m === 0) return `${s}s`;
+  return `${m}m ${s.toString().padStart(2, "0")}s`;
+}
+
+function formatElapsed(startIso: string): string {
+  const elapsed = Math.floor((Date.now() - new Date(startIso).getTime()) / 1000);
+  const h = Math.floor(elapsed / 3600);
+  const m = Math.floor((elapsed % 3600) / 60);
+  const s = elapsed % 60;
+  if (h > 0) return `${h}h ${m.toString().padStart(2, "0")}m`;
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+/* ── Emotional timeline strip ────────────────────────────────────────────── */
+function TimelineStrip({ checkIns }: { checkIns: TradeCheckIn[] }) {
+  if (checkIns.length === 0) return null;
+  const colors = useColors();
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+      {checkIns.map(ci => {
+        const meta = CHECK_IN_STATES.find(s => s.key === ci.state)!;
+        return (
+          <View key={ci.id} style={{ alignItems: "center", gap: 2 }}>
+            <Text style={{ fontSize: 18 }}>{meta.emoji}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+/* ── Main Screen ─────────────────────────────────────────────────────────── */
+type ScreenMode =
+  | "IDLE"
+  | "CHECK_IN"           // showing the 4 buttons
+  | "CALM_LOGGED"        // brief confirm for calm
+  | "WATCHING_ADVICE"    // one-liner for watching
+  | "BREATHING"          // box breathing for urge/anxious
+  | "POST_BREATHING"     // message after breathing
+  | "CLOSE_TRADE";       // outcome logging
+
+export default function InTradeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const qc = useQueryClient();
+  const router = useRouter();
 
-  const [pair, setPair] = useState("EUR/USD");
-  const [grade, setGrade] = useState<SetupGrade>("A_PLUS");
-  const [direction, setDirection] = useState<"LONG" | "SHORT">("LONG");
-  const [activeTrade, setActiveTrade] = useState<Trade | null>(null);
-  const [showPause, setShowPause] = useState(false);
-  const [entryEmotionState, setEntryEmotionState] = useState("");
-
-  const [outcome, setOutcome] = useState<TradeOutcome>("WIN");
-  const [followedPlan, setFollowedPlan] = useState(true);
-  const [interfered, setInterfered] = useState(false);
-  const [interferenceType, setInterferenceType] = useState<InterferenceType>("CLOSED_EARLY");
-  const [postTradeEmotion, setPostTradeEmotion] = useState("NEUTRAL");
-  const [debriefNotes, setDebriefNotes] = useState("");
-
-  const { data: session } = useQuery<Session | null>({
-    queryKey: ["session"],
-    queryFn: async () => {
-      try { return await api.getCurrentSession(); } catch { return null; }
-    },
-  });
-
-  const lockMutation = useMutation({
-    mutationFn: async (emotionAtEntry: string) => {
-      if (!session) throw new Error("No session");
-      return api.createTrade({
-        sessionId: session.id, pair, setupGrade: grade, direction,
-        notes: emotionAtEntry ? `Entry state: ${emotionAtEntry}` : undefined,
-      });
-    },
-    onSuccess: (trade) => {
-      setActiveTrade(trade);
-      setShowPause(false);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    },
-  });
-
-  const debriefMutation = useMutation({
-    mutationFn: async () => {
-      if (!activeTrade) throw new Error("No active trade");
-      return api.updateTrade(activeTrade.id, {
-        outcome, followedPlan, interfered,
-        interferenceType: interfered ? interferenceType : undefined,
-        emotionalState: postTradeEmotion,
-        notes: [debriefNotes, postTradeEmotion ? `Post-trade state: ${postTradeEmotion}` : ""].filter(Boolean).join(" | ") || undefined,
-        closedAt: new Date().toISOString(),
-      });
-    },
-    onSuccess: (data) => {
-      Haptics.notificationAsync(data.outcome === "WIN" ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
-      qc.invalidateQueries({ queryKey: ["trades"] });
-      qc.invalidateQueries({ queryKey: ["session"] });
-      setActiveTrade(null);
-      setDebriefNotes(""); setInterfered(false); setFollowedPlan(true);
-      setPostTradeEmotion("NEUTRAL"); setEntryEmotionState("");
-    },
-  });
+  const [trade, setTrade] = useState<ActiveTrade | null>(null);
+  const [mode, setMode] = useState<ScreenMode>("IDLE");
+  const [lastState, setLastState] = useState<CheckInState | null>(null);
+  const [elapsed, setElapsed] = useState("");
+  const [countdown, setCountdown] = useState("");
+  const [outcome, setOutcome] = useState<TradeOutcomeLocal>("WIN");
+  const [closingNote, setClosingNote] = useState("");
+  const [closing, setClosing] = useState(false);
 
   const topPad = Platform.OS === "web" ? webTop : insets.top;
   const bottomPad = Platform.OS === "web" ? webBottom : 100;
 
-  if (!session || session.endedAt) {
+  const loadTrade = useCallback(async () => {
+    const t = await loadActiveTrade();
+    setTrade(t);
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    loadTrade();
+    setMode("IDLE");
+  }, [loadTrade]));
+
+  /* Elapsed + countdown ticker */
+  useEffect(() => {
+    if (!trade) return;
+    const tick = () => {
+      setElapsed(formatElapsed(trade.startedAt));
+      const msLeft = new Date(trade.nextCheckInAt).getTime() - Date.now();
+      setCountdown(formatCountdown(msLeft));
+      if (msLeft <= 0 && mode === "IDLE") {
+        setMode("CHECK_IN");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [trade, mode]);
+
+  /* AppState — re-check when app comes to foreground */
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") loadTrade();
+    });
+    return () => sub.remove();
+  }, []);
+
+  async function handleCheckIn(state: CheckInState) {
+    if (!trade) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setLastState(state);
+
+    const checkIn: TradeCheckIn = { id: generateId(), timestamp: new Date().toISOString(), state };
+    const updated: ActiveTrade = {
+      ...trade,
+      checkIns: [...trade.checkIns, checkIn],
+      nextCheckInAt: nextCheckInTimestamp(state),
+    };
+    await saveActiveTrade(updated);
+    setTrade(updated);
+
+    if (state === "CALM") {
+      setMode("CALM_LOGGED");
+      setTimeout(() => setMode("IDLE"), 2000);
+    } else if (state === "WATCHING") {
+      setMode("WATCHING_ADVICE");
+    } else {
+      setMode("BREATHING");
+    }
+  }
+
+  function handleSOSPress() {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setLastState("URGE");
+    setMode("BREATHING");
+    const checkIn: TradeCheckIn = { id: generateId(), timestamp: new Date().toISOString(), state: "URGE" };
+    if (trade) {
+      const updated: ActiveTrade = {
+        ...trade,
+        checkIns: [...trade.checkIns, checkIn],
+        nextCheckInAt: nextCheckInTimestamp("URGE"),
+      };
+      saveActiveTrade(updated);
+      setTrade(updated);
+    }
+  }
+
+  async function handleBreathingComplete() {
+    setMode("POST_BREATHING");
+  }
+
+  async function handleCloseTrade() {
+    if (!trade) return;
+    setClosing(true);
+    Haptics.notificationAsync(outcome === "WIN" ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
+
+    await saveCompletedTrade({
+      id: trade.id,
+      startedAt: trade.startedAt,
+      closedAt: new Date().toISOString(),
+      pair: trade.pair,
+      direction: trade.direction,
+      invalidation: trade.invalidation,
+      outcome,
+      checkIns: trade.checkIns,
+      note: closingNote.trim() || undefined,
+    });
+
+    await saveActiveTrade(null);
+    setTrade(null);
+    setMode("IDLE");
+    setClosing(false);
+    setClosingNote("");
+    router.push("/(tabs)/journal");
+  }
+
+  /* ── Render ── */
+  if (!trade) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: topPad + 16 }}>
         <EmptyState
-          icon={<Icon name="crosshair" size={40} color={colors.border} />}
-          title="No active session"
-          subtitle="Start a session on the Hub tab first"
+          icon={<Icon name="activity" size={40} color={colors.border} />}
+          title="No trade open"
+          subtitle="Use the Plan tab to log a trade before entering MT5"
         />
       </View>
     );
   }
 
+  const lastCheckIn = trade.checkIns.length > 0 ? trade.checkIns[trade.checkIns.length - 1] : null;
+  const lastStateMeta = lastCheckIn ? CHECK_IN_STATES.find(s => s.key === lastCheckIn.state) : null;
+  const msLeft = new Date(trade.nextCheckInAt).getTime() - Date.now();
+  const isDue = msLeft <= 0;
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: bottomPad, gap: 20 }}
-      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: bottomPad, gap: 16 }}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
-      <View>
-        <Text style={{ color: colors.foreground, fontSize: 26, fontFamily: "Inter_700Bold" }}>Active Monitor</Text>
-        <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular" }}>
-          Lock in before entry · debrief after close
+      {/* Header */}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <View>
+          <Text style={{ color: colors.foreground, fontSize: 26, fontFamily: "Inter_700Bold" }}>In Trade</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular" }}>
+            {trade.pair} · {trade.direction} · {elapsed}
+          </Text>
+        </View>
+        {lastStateMeta && (
+          <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: `${lastStateMeta.color}18`, borderWidth: 1, borderColor: `${lastStateMeta.color}40` }}>
+            <Text style={{ fontSize: 18 }}>{lastStateMeta.emoji}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Invalidation condition */}
+      <View style={{ padding: 12, borderRadius: 10, backgroundColor: `${colors.primary}08`, borderWidth: 1, borderColor: `${colors.primary}20` }}>
+        <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>
+          Invalidation condition
+        </Text>
+        <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 }}>
+          {trade.invalidation}
         </Text>
       </View>
 
-      {!activeTrade ? (
-        showPause ? (
-          <PauseProtocol
-            onComplete={(emotionState) => { setEntryEmotionState(emotionState); lockMutation.mutate(emotionState); }}
-            onCancel={() => setShowPause(false)}
-          />
-        ) : (
-          <View style={{ gap: 16 }}>
-            {/* Pre-trade info banner */}
-            <View style={{ padding: 12, borderRadius: 10, backgroundColor: `${colors.primary}08`, borderWidth: 1, borderColor: `${colors.primary}20`, flexDirection: "row", gap: 10 }}>
-              <Icon name="info" size={14} color={colors.primary} />
-              <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 18 }}>
-                Lock in your trade BEFORE entry. This creates accountability and a pre-commitment record. A 20-second pause will follow to prevent impulsive execution.
-              </Text>
-            </View>
-
-            <Card style={{ gap: 16 }}>
-              <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_600SemiBold" }}>Lock In Trade</Text>
-
-              <View>
-                <SectionLabel text="Pair" />
-                <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                  {PAIRS.map(p => <OptionChip key={p} label={p} selected={pair === p} onPress={() => setPair(p)} />)}
-                </View>
-              </View>
-
-              <View>
-                <SectionLabel text="Grade" />
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  {GRADES.map(g => <OptionChip key={g} label={GRADE_LABELS[g]} selected={grade === g} onPress={() => setGrade(g)} />)}
-                </View>
-              </View>
-
-              <View>
-                <SectionLabel text="Direction" />
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  <OptionChip label="LONG ↑" selected={direction === "LONG"} onPress={() => setDirection("LONG")} color={colors.success} />
-                  <OptionChip label="SHORT ↓" selected={direction === "SHORT"} onPress={() => setDirection("SHORT")} color={colors.destructive} />
-                </View>
-              </View>
-
-              {grade === "C" && (
-                <View style={{ padding: 10, borderRadius: 8, backgroundColor: "#ef444410", borderWidth: 1, borderColor: "#ef444430" }}>
-                  <Text style={{ color: "#ef4444", fontSize: 12, fontFamily: "Inter_600SemiBold", marginBottom: 2 }}>C-grade setup</Text>
-                  <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 }}>
-                    Are you sure? C-grade setups have poor expectancy over time. Run the Gate check first.
-                  </Text>
-                </View>
-              )}
-
-              <Button
-                label="Begin Pre-Trade Pause"
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowPause(true); }}
-                loading={lockMutation.isPending}
-                icon={<Icon name="pause-circle" size={14} color={colors.primaryForeground} />}
-                fullWidth
-              />
-            </Card>
-          </View>
-        )
-      ) : (
-        <View style={{ gap: 12 }}>
-          {/* Active trade banner */}
-          <View style={[styles.activeBanner, { backgroundColor: `${colors.primary}12`, borderColor: colors.primary }]}>
-            <View style={[styles.dot, { backgroundColor: colors.primary }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.primary, fontSize: 16, fontFamily: "Inter_700Bold" }}>
-                {activeTrade.pair} — {GRADE_LABELS[activeTrade.setupGrade]} — {activeTrade.direction}
-              </Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>
-                Locked {new Date(activeTrade.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                {entryEmotionState ? ` · Entry: ${entryEmotionState}` : ""}
-              </Text>
-            </View>
-          </View>
-
-          <View style={{ padding: 10, borderRadius: 8, backgroundColor: colors.secondary, borderWidth: 1, borderColor: colors.border, flexDirection: "row", gap: 10 }}>
-            <Icon name="eye" size={13} color={colors.mutedForeground} />
-            <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 16 }}>
-              Trade is live. Do not interfere. When it closes, return here to debrief.
+      {/* Check-in overlay */}
+      {mode === "CHECK_IN" && (
+        <Card style={{ gap: 16 }}>
+          <View style={{ alignItems: "center", gap: 6 }}>
+            <Text style={{ color: colors.foreground, fontSize: 16, fontFamily: "Inter_700Bold", textAlign: "center" }}>
+              Right now, how are you?
+            </Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" }}>
+              One tap · two seconds
             </Text>
           </View>
+          <View style={{ gap: 10 }}>
+            {CHECK_IN_STATES.map(s => (
+              <TouchableOpacity
+                key={s.key}
+                activeOpacity={0.8}
+                onPress={() => handleCheckIn(s.key)}
+                style={{ flexDirection: "row", alignItems: "center", gap: 14, padding: 14, borderRadius: 12, borderWidth: 1.5, borderColor: `${s.color}50`, backgroundColor: `${s.color}10` }}
+              >
+                <Text style={{ fontSize: 26 }}>{s.emoji}</Text>
+                <Text style={{ color: s.color, fontSize: 15, fontFamily: "Inter_600SemiBold", flex: 1 }}>{s.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Card>
+      )}
 
-          {/* Debrief */}
-          <Card style={{ gap: 16 }}>
-            <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_600SemiBold" }}>Debrief</Text>
+      {/* Calm logged */}
+      {mode === "CALM_LOGGED" && (
+        <View style={{ padding: 18, borderRadius: 12, backgroundColor: "#22c55e12", borderWidth: 1, borderColor: "#22c55e30", alignItems: "center", gap: 8 }}>
+          <Text style={{ fontSize: 28 }}>🙂</Text>
+          <Text style={{ color: "#22c55e", fontSize: 15, fontFamily: "Inter_600SemiBold" }}>Calm logged</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>
+            Next check-in in 10 minutes
+          </Text>
+        </View>
+      )}
 
-            <View>
-              <SectionLabel text="Outcome" />
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <OptionChip label="WIN" selected={outcome === "WIN"} onPress={() => setOutcome("WIN")} color={colors.success} />
-                <OptionChip label="LOSS" selected={outcome === "LOSS"} onPress={() => setOutcome("LOSS")} color={colors.destructive} />
-                <OptionChip label="BREAKEVEN" selected={outcome === "BREAKEVEN"} onPress={() => setOutcome("BREAKEVEN")} color={colors.mutedForeground} />
-              </View>
-            </View>
-
-            <View style={styles.switchRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_500Medium" }}>Followed the plan?</Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>Executed exactly as planned?</Text>
-              </View>
-              <Switch
-                value={followedPlan} onValueChange={setFollowedPlan}
-                trackColor={{ false: colors.border, true: `${colors.success}80` }}
-                thumbColor={followedPlan ? colors.success : colors.mutedForeground}
-              />
-            </View>
-
-            <View style={styles.switchRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_500Medium" }}>Interfered?</Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>Moved SL, closed early, etc.</Text>
-              </View>
-              <Switch
-                value={interfered} onValueChange={setInterfered}
-                trackColor={{ false: colors.border, true: `${colors.warning}80` }}
-                thumbColor={interfered ? colors.warning : colors.mutedForeground}
-              />
-            </View>
-
-            {interfered && (
-              <View>
-                <SectionLabel text="Interference Type" />
-                <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                  {(["CLOSED_EARLY", "MOVED_SL", "REVENGE", "OVERSIZE"] as InterferenceType[]).map(t => (
-                    <OptionChip key={t} label={t.replace("_", " ")} selected={interferenceType === t} onPress={() => setInterferenceType(t)} color={colors.warning} />
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Alibi awareness — Rande Howell's rationalization trap */}
-            <View>
-              <SectionLabel text="Alibi Awareness" />
-              <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", marginBottom: 8, lineHeight: 16 }}>
-                Rande Howell: "The rational brain often creates alibis — justifications produced after the emotional brain has already made a decision." How honest is your decision here?
+      {/* Watching advice */}
+      {mode === "WATCHING_ADVICE" && (
+        <Card style={{ gap: 14 }}>
+          <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
+            <Text style={{ fontSize: 22 }}>😐</Text>
+            <View style={{ flex: 1, gap: 8 }}>
+              <Text style={{ color: "#f59e0b", fontSize: 14, fontFamily: "Inter_600SemiBold", lineHeight: 20 }}>
+                Watching = wanting it to move.
               </Text>
-              <View style={{ gap: 8 }}>
-                {[
-                  { id: "CLEAN", label: "Clean execution", desc: "I followed my system. My rational brain made this decision.", color: "#22c55e" },
-                  { id: "MINOR", label: "Minor rationalization", desc: "I adjusted slightly. I may have bent a rule but justified it.", color: "#f59e0b" },
-                  { id: "ALIBI", label: "Full alibi", desc: "My emotional brain decided first. My rational brain created a story to justify it.", color: "#ef4444" },
-                ].map(opt => {
-                  const isSelected = (activeTrade as any)?._alibi === opt.id || postTradeEmotion === opt.id + "_alibi";
-                  return (
-                    <TouchableOpacity
-                      key={opt.id} activeOpacity={0.8}
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        if (opt.id === "ALIBI") {
-                          setDebriefNotes(prev => {
-                            const tag = "[Alibi detected] ";
-                            return prev.startsWith(tag) ? prev : tag + prev;
-                          });
-                        }
-                      }}
-                      style={{ padding: 12, borderRadius: 10, borderWidth: 1.5, borderColor: `${opt.color}40`, backgroundColor: `${opt.color}08`, flexDirection: "row", gap: 10, alignItems: "flex-start" }}
-                    >
-                      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: opt.color, marginTop: 3 }} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: opt.color, fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 2 }}>{opt.label}</Text>
-                        <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 }}>{opt.desc}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Post-trade emotional state — key Rande Howell data point */}
-            <View>
-              <SectionLabel text="Post-Trade Emotional State" />
-              <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", marginBottom: 8, lineHeight: 16 }}>
-                Tracking post-trade emotion reveals emotional patterns. Revenge urge after a loss = amygdala hijack risk.
+              <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 }}>
+                Let the plan work. Check again in 5.
               </Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                {POST_TRADE_EMOTIONS.map(e => (
-                  <TouchableOpacity
-                    key={e.id} activeOpacity={0.8} onPress={() => { setPostTradeEmotion(e.id); Haptics.selectionAsync(); }}
-                    style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: postTradeEmotion === e.id ? e.color : colors.border, backgroundColor: postTradeEmotion === e.id ? `${e.color}18` : colors.secondary }}
-                  >
-                    <Text style={{ color: postTradeEmotion === e.id ? e.color : colors.mutedForeground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{e.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              {postTradeEmotion === "URGE_REVENGE" && (
-                <View style={{ marginTop: 8, padding: 10, borderRadius: 8, backgroundColor: "#ef444410", borderWidth: 1, borderColor: "#ef444430" }}>
-                  <Text style={{ color: "#ef4444", fontSize: 12, fontFamily: "Inter_600SemiBold", marginBottom: 2 }}>Revenge urge detected</Text>
-                  <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 }}>
-                    Do not open another trade. Go to Hub → SOS protocol, or do 3 cycles of 4-7-8 breathing. Wait at least 20 minutes.
+            </View>
+          </View>
+          <Button label="Got it" onPress={() => setMode("IDLE")} fullWidth />
+        </Card>
+      )}
+
+      {/* Box breathing */}
+      {mode === "BREATHING" && (
+        <Card style={{ gap: 16 }}>
+          <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+            <Text style={{ fontSize: 22 }}>{lastState === "ANXIOUS" ? "😰" : "😬"}</Text>
+            <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold", flex: 1 }}>
+              60-second reset
+            </Text>
+          </View>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 }}>
+            Box breathing (4-4-4-4). Don't touch MT5 until this completes.
+          </Text>
+          <BoxBreathing onComplete={handleBreathingComplete} />
+        </Card>
+      )}
+
+      {/* Post-breathing message */}
+      {mode === "POST_BREATHING" && (
+        <Card style={{ gap: 14 }}>
+          <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
+            <Text style={{ fontSize: 22 }}>{lastState === "ANXIOUS" ? "😰" : "😬"}</Text>
+            <View style={{ flex: 1, gap: 8 }}>
+              {lastState === "ANXIOUS" ? (
+                <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_500Medium", lineHeight: 22 }}>
+                  Is this fear about{" "}
+                  <Text style={{ fontFamily: "Inter_700Bold", color: "#ef4444" }}>this trade</Text>
+                  {" "}— or about{" "}
+                  <Text style={{ fontFamily: "Inter_700Bold", color: "#f97316" }}>money in general</Text>
+                  {" "}right now?
+                </Text>
+              ) : (
+                <>
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_500Medium", lineHeight: 22 }}>
+                    What does your plan say?
                   </Text>
-                </View>
+                  <View style={{ padding: 12, borderRadius: 8, backgroundColor: `${colors.primary}08`, borderWidth: 1, borderColor: `${colors.primary}20` }}>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>
+                      Your invalidation
+                    </Text>
+                    <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 }}>
+                      {trade.invalidation}
+                    </Text>
+                  </View>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" }}>
+                    Re-read it before touching anything in MT5.
+                  </Text>
+                </>
+              )}
+            </View>
+          </View>
+          <Button label="Back to monitoring" onPress={() => setMode("IDLE")} fullWidth />
+        </Card>
+      )}
+
+      {/* Trade close form */}
+      {mode === "CLOSE_TRADE" && (
+        <Card style={{ gap: 16 }}>
+          <Text style={{ color: colors.foreground, fontSize: 16, fontFamily: "Inter_700Bold" }}>Close Trade</Text>
+
+          {/* Check-in timeline */}
+          {trade.checkIns.length > 0 && (
+            <View style={{ gap: 8 }}>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase" }}>
+                Your emotional journey
+              </Text>
+              <TimelineStrip checkIns={trade.checkIns} />
+            </View>
+          )}
+
+          <View>
+            <SectionLabel text="Outcome" />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {([
+                { key: "WIN" as TradeOutcomeLocal, label: "WIN", color: "#22c55e" },
+                { key: "LOSS" as TradeOutcomeLocal, label: "LOSS", color: "#ef4444" },
+                { key: "BE" as TradeOutcomeLocal, label: "B/E", color: "#71717a" },
+              ]).map(o => (
+                <TouchableOpacity
+                  key={o.key}
+                  activeOpacity={0.8}
+                  onPress={() => { setOutcome(o.key); Haptics.selectionAsync(); }}
+                  style={{ flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, borderColor: outcome === o.key ? o.color : colors.border, backgroundColor: outcome === o.key ? `${o.color}18` : colors.secondary }}
+                >
+                  <Text style={{ color: outcome === o.key ? o.color : colors.mutedForeground, fontSize: 15, fontFamily: "Inter_700Bold" }}>{o.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View>
+            <SectionLabel text="Note (optional)" />
+            <TextInput
+              value={closingNote}
+              onChangeText={setClosingNote}
+              placeholder="What happened? What do you notice?"
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+              numberOfLines={3}
+              style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_400Regular", borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, minHeight: 72, textAlignVertical: "top", backgroundColor: colors.secondary }}
+            />
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <Button label="Cancel" variant="ghost" onPress={() => setMode("IDLE")} style={{ flex: 1 }} />
+            <Button label="Log & Close" onPress={handleCloseTrade} loading={closing} style={{ flex: 2 }} />
+          </View>
+        </Card>
+      )}
+
+      {/* Main idle panel — only when not in a special mode */}
+      {(mode === "IDLE" || mode === "CALM_LOGGED") && (
+        <View style={{ gap: 12 }}>
+          {/* Next check-in countdown */}
+          <Card style={{ gap: 12 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <View>
+                <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase" }}>
+                  Next check-in
+                </Text>
+                <Text style={{ color: isDue ? colors.destructive : colors.foreground, fontSize: 28, fontFamily: "Inter_700Bold", marginTop: 2 }}>
+                  {isDue ? "Now" : countdown}
+                </Text>
+              </View>
+              {trade.checkIns.length > 0 && (
+                <TimelineStrip checkIns={trade.checkIns} />
               )}
             </View>
 
-            <View>
-              <SectionLabel text="Post-trade notes" />
-              <TextInput
-                value={debriefNotes} onChangeText={setDebriefNotes}
-                placeholder="What happened? What did you feel during this trade?"
-                placeholderTextColor={colors.mutedForeground}
-                multiline numberOfLines={3}
-                style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_400Regular", borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, minHeight: 72, textAlignVertical: "top", backgroundColor: colors.secondary }}
-              />
-            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => { setMode("CHECK_IN"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, borderColor: `${colors.primary}50`, backgroundColor: `${colors.primary}10` }}
+            >
+              <Icon name="check-square" size={16} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontSize: 14, fontFamily: "Inter_600SemiBold" }}>Check In Now</Text>
+            </TouchableOpacity>
+          </Card>
 
+          {/* SOS button */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleSOSPress}
+            style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: "#f9731650", backgroundColor: "#f9731610" }}
+          >
+            <Icon name="alert-octagon" size={18} color="#f97316" />
+            <View>
+              <Text style={{ color: "#f97316", fontSize: 14, fontFamily: "Inter_700Bold" }}>I want to act</Text>
+              <Text style={{ color: "#f97316" + "80", fontSize: 11, fontFamily: "Inter_400Regular" }}>
+                Triggers breathing + plan review
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Trade closed */}
+          {mode !== "CALM_LOGGED" && (
             <Button
-              label="Submit Debrief"
-              onPress={() => debriefMutation.mutate()}
-              loading={debriefMutation.isPending}
-              icon={<Icon name="check" size={14} color={colors.primaryForeground} />}
+              label="Trade Closed →"
+              variant="ghost"
+              onPress={() => setMode("CLOSE_TRADE")}
+              icon={<Icon name="x-circle" size={14} color={colors.mutedForeground} />}
               fullWidth
             />
-          </Card>
+          )}
         </View>
       )}
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  activeBanner: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 12, borderWidth: 1.5 },
-  dot: { width: 10, height: 10, borderRadius: 5 },
-  switchRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 4 },
-});
+const styles = StyleSheet.create({});

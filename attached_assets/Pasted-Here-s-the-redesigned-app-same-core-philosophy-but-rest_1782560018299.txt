@@ -1,0 +1,44 @@
+Here's the redesigned app — same core philosophy, but restructured around what you just clarified: the problem isn't planning, it's staying conscious of your emotional state during execution. Everything either serves that loop or gets cut.
+What gets cut, and why
+FeatureVerdictReasonMulti-step Trade Gate (Body Scan → 4-7-8 → Rules Checklist → full psych form with 4 sliders)Cut, replaced with lightweight versionYou said it yourself — traders already know their plan and psychology. A 5-step gate before every trade is friction nobody sustains. Keep one thing from it (see below), drop the rest.Setup Plan pre-commitment / plan-matchingKeep, but shrink to 3 fieldsStill useful as the anchor your mid-trade check-ins reference, but doesn't need a separate elaborate system — just entry/stop/invalidation, typed in 10 seconds.Speed-to-submit detectionCutWas solving deception in a form you no longer have.Baseline delta / incongruence detectionCutSame — it was patching a hole in self-report sliders. No sliders, no hole.Dynamic friction (10-sec hold post-loss)CutReplaced by the escalating check-in cadence, which does this job continuously, not just once.Locked Execution / edit-gatingCut entirelyYou confirmed: app can't and shouldn't touch MT5 execution. Irrelevant now.Hide P&L / structural notificationsCutSame reason — app isn't watching price at all anymore, by design.CBT JournalKeep, demotedUseful but not realtime — fine as an optional post-day reflection tool, not core.Session ReplayMerge into JournalDoesn't need its own page; just becomes a detail view per session.Behavioral AnalyticsKeep, re-pointedNow driven by check-in data, not slider data. This becomes the proof engine.Trading Rules editorKeep, simplifiedStill useful, but just a short personal checklist you set once, not part of any gate flow.
+The redesigned app — 4 screens, 1 engine
+1. Hub (Home)
+
+Big Start Session / End Session button.
+If a trade is open: shows "In Trade" status with time elapsed and a manual "Check In Now" button (for whenever you want to self-report outside the scheduled ping).
+Loss count and discipline streak, same as before — short and visible, no dashboard clutter.
+
+2. Quick Plan (replaces the old Trade Gate)
+Before entering a trade in MT5, optional 10-second entry — not a gate, not blocking, just a log:
+
+Asset, Direction
+Entry / Stop / Invalidation condition (one sentence: "what proves this idea wrong")
+One tap: "Entering Now"
+
+This starts "In Trade" mode. No sliders, no breathing requirement, no checklist — because you said the planning problem is already solved in the trader's head; this just timestamps it so check-ins later can reference it.
+3. In Trade (the core screen — this is the app now)
+While a position is open:
+
+Quiet display: pair, direction, time elapsed, your invalidation condition. No P&L.
+Check-in pings every 5 minutes, adaptive cadence:
+
+🙂 Calm → next ping in 10 min, silent log
+😐 Watching closely → gentle one-liner, next ping in 5 min
+😬 Urge to act → 60-sec box breathing → "re-read your invalidation condition" → next ping in 2 min
+😰 Anxious → 60-sec breathing → grounding question ("about this trade, or money in general?") → next ping in 2 min
+
+
+Manual SOS button always visible: "I want to act" — runs the same 😬 branch on demand, for whenever the urge hits between scheduled pings.
+Trade Closed button → logs outcome (Win/Loss/BE) and auto-attaches the full check-in timeline (🙂😐😬🙂) to that trade.
+
+This screen is the product. Everything else supports it.
+4. Journal & Insight (merged Journal + Analytics + Replay)
+
+List of past trades: outcome, emotional timeline strip, your own note.
+One key chart, not a dashboard of charts: win rate by worst emotional state hit during the trade. This is the single number that proves to you whether staying calm correlates with winning — your own evidence, not the app's claim.
+Optional CBT reflection prompt at end of day, only if you want it — not forced.
+
+What's left out completely now
+No Execution Monitor (can't watch MT5), no Rules Checklist gate (you already know your rules), no readiness score, no verdict engine (STATE ALIGNED/HARD BLOCK language — there's nothing left to "verdict" since the app doesn't gate entry anymore). The backend shrinks from a scoring engine to basically: sessions, trades, check-ins, timestamps. Much smaller surface area, much easier to actually finish and use daily.
+The single sentence version of the new app
+A timer that asks "how are you, right now" every few minutes while you're in a trade, breathes you down when the answer is bad, and shows you afterward whether staying calm actually won you more money.
