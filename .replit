@@ -36,6 +36,10 @@ args = "Start application"
 task = "workflow.run"
 args = "Start Mobile"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start API"
+
 [[workflows.workflow]]
 name = "Trading Psychology System"
 author = "agent"
@@ -93,8 +97,20 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=8080 pnpm --filter @workspace/trading-psychology-mobile run dev"
+args = "PORT=8099 pnpm --filter @workspace/trading-psychology-mobile run dev"
+waitForPort = 8099
+
+[[workflows.workflow]]
+name = "Start API"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=8080 pnpm --filter @workspace/api-server run dev"
 waitForPort = 8080
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [agent]
 stack = "BEST_EFFORT_FALLBACK"
@@ -110,12 +126,12 @@ localPort = 3001
 externalPort = 3001
 
 [[ports]]
-localPort = 8080
-externalPort = 8080
+localPort = 5000
+externalPort = 80
 
 [[ports]]
-localPort = 8082
-externalPort = 3002
+localPort = 8080
+externalPort = 8080
 
 [[ports]]
 localPort = 21104
@@ -126,8 +142,8 @@ localPort = 21714
 externalPort = 3000
 
 [[ports]]
-localPort = 5000
-externalPort = 80
+localPort = 8099
+externalPort = 8099
 
 [nix]
 channel = "stable-25_05"
