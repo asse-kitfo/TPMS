@@ -30,14 +30,6 @@ args = "Mobile App"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Start application"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start Mobile"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "Start API"
 
 [[workflows.workflow]]
@@ -75,30 +67,6 @@ outputType = "console"
 task = "shell.exec"
 args = "cd artifacts/trading-psychology-mobile && PORT=3001 EXPO_NO_DOCTOR=1 pnpm exec expo start --localhost --port 3001"
 waitForPort = 3001
-
-[[workflows.workflow]]
-name = "Start application"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "webview"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm install && pnpm --filter @workspace/trading-psychology run dev"
-waitForPort = 5000
-
-[[workflows.workflow]]
-name = "Start Mobile"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PORT=8099 pnpm --filter @workspace/trading-psychology-mobile run dev"
-waitForPort = 8099
 
 [[workflows.workflow]]
 name = "Start API"
@@ -140,10 +108,6 @@ externalPort = 3001
 [[ports]]
 localPort = 21714
 externalPort = 3000
-
-[[ports]]
-localPort = 8099
-externalPort = 8099
 
 [nix]
 channel = "stable-25_05"
