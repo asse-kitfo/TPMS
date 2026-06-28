@@ -32,6 +32,10 @@ args = "Mobile App"
 task = "workflow.run"
 args = "Start application"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start Mobile"
+
 [[workflows.workflow]]
 name = "Trading Psychology System"
 author = "agent"
@@ -80,6 +84,18 @@ task = "shell.exec"
 args = "pnpm install && pnpm --filter @workspace/trading-psychology run dev"
 waitForPort = 5000
 
+[[workflows.workflow]]
+name = "Start Mobile"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=8080 pnpm --filter @workspace/trading-psychology-mobile run dev"
+waitForPort = 8080
+
 [agent]
 stack = "BEST_EFFORT_FALLBACK"
 expertMode = true
@@ -96,10 +112,6 @@ externalPort = 3001
 [[ports]]
 localPort = 8080
 externalPort = 8080
-
-[[ports]]
-localPort = 8081
-externalPort = 8081
 
 [[ports]]
 localPort = 8082
