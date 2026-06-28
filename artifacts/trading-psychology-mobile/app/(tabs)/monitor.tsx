@@ -15,7 +15,7 @@ import {
   loadCheckInInterval, computeWorstState,
   ActiveTrade, TradeCheckIn, CheckInState, TradeOutcome, CheckInIntervalBase,
 } from "@/lib/storage";
-import { scheduleTradeNotifications, cancelAllCheckInNotifications, STALE_TRADE_HOURS } from "@/lib/notifications";
+import { scheduleTradeNotifications, cancelAllCheckInNotifications, scheduleCheckInNotification, STALE_TRADE_HOURS } from "@/lib/notifications";
 
 /* ── Check-in states ─────────────────────────────────────────────────────── */
 const STATES: { key: CheckInState; emoji: string; label: string; color: string }[] = [
