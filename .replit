@@ -28,6 +28,10 @@ args = "API Server"
 task = "workflow.run"
 args = "Mobile App"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
 [[workflows.workflow]]
 name = "Trading Psychology System"
 author = "agent"
@@ -64,6 +68,18 @@ task = "shell.exec"
 args = "cd artifacts/trading-psychology-mobile && PORT=3001 EXPO_NO_DOCTOR=1 pnpm exec expo start --localhost --port 3001"
 waitForPort = 3001
 
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm install && pnpm --filter @workspace/trading-psychology run dev"
+waitForPort = 5000
+
 [agent]
 stack = "BEST_EFFORT_FALLBACK"
 expertMode = true
@@ -96,6 +112,10 @@ externalPort = 3001
 [[ports]]
 localPort = 21714
 externalPort = 3000
+
+[[ports]]
+localPort = 5000
+externalPort = 80
 
 [nix]
 channel = "stable-25_05"
