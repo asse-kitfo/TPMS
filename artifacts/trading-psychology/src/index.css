@@ -80,7 +80,7 @@
 
   --border: 220 15% 85%;
   --input: 220 15% 85%;
-  --ring: 220 90% 60%;
+  --ring: 191 100% 50%;
 
   --card: 0 0% 100%;
   --card-foreground: 220 15% 10%;
@@ -90,8 +90,8 @@
   --popover-foreground: 220 15% 10%;
   --popover-border: 220 15% 90%;
 
-  --primary: 220 90% 60%;
-  --primary-foreground: 0 0% 100%;
+  --primary: 191 100% 50%;
+  --primary-foreground: 220 15% 8%;
 
   --secondary: 220 15% 90%;
   --secondary-foreground: 220 15% 10%;
@@ -105,20 +105,20 @@
   --destructive: 0 80% 50%;
   --destructive-foreground: 0 0% 100%;
 
-  --chart-1: 220 90% 60%;
+  --chart-1: 191 100% 50%;
   --chart-2: 150 90% 40%;
-  --chart-3: 45 90% 50%;
+  --chart-3: 38 93% 50%;
   --chart-4: 0 80% 50%;
   --chart-5: 280 90% 60%;
 
   --sidebar: 0 0% 100%;
   --sidebar-foreground: 220 15% 10%;
   --sidebar-border: 220 15% 90%;
-  --sidebar-primary: 220 90% 60%;
-  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-primary: 191 100% 50%;
+  --sidebar-primary-foreground: 220 15% 8%;
   --sidebar-accent: 220 15% 90%;
   --sidebar-accent-foreground: 220 15% 10%;
-  --sidebar-ring: 220 90% 60%;
+  --sidebar-ring: 191 100% 50%;
 
   --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: Georgia, serif;
@@ -148,7 +148,7 @@
 
   --border: 225 15% 16%;
   --input: 225 15% 16%;
-  --ring: 220 90% 60%;
+  --ring: 191 100% 50%;
 
   --card: 225 15% 10%;
   --card-foreground: 225 15% 90%;
@@ -157,18 +157,18 @@
   --sidebar: 225 15% 10%;
   --sidebar-foreground: 225 15% 90%;
   --sidebar-border: 225 15% 16%;
-  --sidebar-primary: 220 90% 60%;
-  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-primary: 191 100% 50%;
+  --sidebar-primary-foreground: 225 15% 8%;
   --sidebar-accent: 225 15% 16%;
   --sidebar-accent-foreground: 225 15% 90%;
-  --sidebar-ring: 220 90% 60%;
+  --sidebar-ring: 191 100% 50%;
 
   --popover: 225 15% 10%;
   --popover-foreground: 225 15% 90%;
   --popover-border: 225 15% 16%;
 
-  --primary: 220 90% 60%;
-  --primary-foreground: 0 0% 100%;
+  --primary: 191 100% 50%;
+  --primary-foreground: 225 15% 8%;
 
   --secondary: 225 15% 16%;
   --secondary-foreground: 225 15% 90%;
@@ -182,9 +182,9 @@
   --destructive: 0 80% 50%;
   --destructive-foreground: 0 0% 100%;
 
-  --chart-1: 220 90% 60%;
+  --chart-1: 191 100% 50%;
   --chart-2: 150 90% 40%;
-  --chart-3: 45 90% 50%;
+  --chart-3: 38 93% 50%;
   --chart-4: 0 80% 50%;
   --chart-5: 280 90% 60%;
 }

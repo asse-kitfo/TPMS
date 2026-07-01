@@ -19,6 +19,10 @@
     },
     "android": {
       "package": "com.apexterm.trading",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#0A0E1A"
+      },
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
