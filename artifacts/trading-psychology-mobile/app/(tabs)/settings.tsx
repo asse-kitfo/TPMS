@@ -63,23 +63,25 @@ export default function SettingsScreen() {
   }
 
   async function deleteRule(id: string) {
-    Alert.alert(
-      "Delete Rule",
-      "Are you sure you want to delete this rule?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            const updated = rules.filter(r => r.id !== id);
-            setRules(updated);
-            await saveRules(updated);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          },
-        },
-      ]
-    );
+    const doDelete = async () => {
+      const updated = rules.filter(r => r.id !== id);
+      setRules(updated);
+      await saveRules(updated);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    };
+
+    if (Platform.OS === "web") {
+      if (window.confirm("Delete this rule?")) await doDelete();
+    } else {
+      Alert.alert(
+        "Delete Rule",
+        "Are you sure you want to delete this rule?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Delete", style: "destructive", onPress: doDelete },
+        ]
+      );
+    }
   }
 
   async function handleIntervalChange(val: CheckInIntervalBase) {
