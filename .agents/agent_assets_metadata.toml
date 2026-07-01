@@ -29,3 +29,21 @@ id = "h9Jd9g3EPY9EofcRW-MY-"
 uri = "file://artifacts/trading-psychology-mobile/assets/images/icon.png"
 type = "image"
 title = "ApexTerm Logo"
+
+[[outputs]]
+id = "z7gIGpD_KU3rvbfICe4XJ"
+uri = "file://artifacts/trading-psychology-mobile/assets/images/icon_v2a.png"
+type = "image"
+title = "Option A — Triangle + Candlesticks (cyan-to-gold)"
+
+[[outputs]]
+id = "0uDUemeUnmEdTobIaB-YN"
+uri = "file://artifacts/trading-psychology-mobile/assets/images/icon_v2b.png"
+type = "image"
+title = "Option B — Crystal A Lettermark (teal glow)"
+
+[[outputs]]
+id = "uYyEy-XjEZJxCLzZNqZW9"
+uri = "file://artifacts/trading-psychology-mobile/assets/images/icon_v2c.png"
+type = "image"
+title = "Option C — Mind + Candlesticks (head silhouette)"
