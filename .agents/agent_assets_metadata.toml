@@ -24,6 +24,18 @@ uri = "file://artifacts/trading-psychology-mobile/assets/images/icon_v2c.png"
 type = "image"
 title = "mind chart psychology icon"
 
+[[generated]]
+id = "F3sbR_YdHl3F0lCitb7IL"
+uri = "file://artifacts/trading-psychology-mobile/assets/images/icon_v3a.png"
+type = "image"
+title = "apex A lettermark candlestick crossbar"
+
+[[generated]]
+id = "XO23cxmJg5FE381b9tgTG"
+uri = "file://artifacts/trading-psychology-mobile/assets/images/icon_v3b.png"
+type = "image"
+title = "apex A triangle peak candlestick"
+
 [[outputs]]
 id = "h9Jd9g3EPY9EofcRW-MY-"
 uri = "file://artifacts/trading-psychology-mobile/assets/images/icon.png"
@@ -47,3 +59,15 @@ id = "uYyEy-XjEZJxCLzZNqZW9"
 uri = "file://artifacts/trading-psychology-mobile/assets/images/icon_v2c.png"
 type = "image"
 title = "Option C — Mind + Candlesticks (head silhouette)"
+
+[[outputs]]
+id = "GSae4LwzFABDNmgXd_NKR"
+uri = "file://artifacts/trading-psychology-mobile/assets/images/icon_v3a.png"
+type = "image"
+title = "Refined A — Candlestick crossbar on the A"
+
+[[outputs]]
+id = "tcp1VcYJ59D7vA2r0ug1u"
+uri = "file://artifacts/trading-psychology-mobile/assets/images/icon_v3b.png"
+type = "image"
+title = "Refined B — Triangle-as-A with apex light burst"
