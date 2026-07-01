@@ -1,8 +1,13 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "6xhbN5Ogir7s4QQfxBEb3"
 uri = "file://artifacts/trading-psychology-mobile/assets/images/icon.png"
 type = "image"
 title = "apexterm-app-icon"
+
+[[outputs]]
+id = "h9Jd9g3EPY9EofcRW-MY-"
+uri = "file://artifacts/trading-psychology-mobile/assets/images/icon.png"
+type = "image"
+title = "ApexTerm Logo"
