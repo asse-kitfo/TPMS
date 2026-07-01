@@ -69,7 +69,7 @@ export function Shell({ children }: ShellProps) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-border/50">
+        <div className="p-4 border-t border-border/50 space-y-3">
           <div className="bg-secondary/50 rounded-lg p-3 border border-border/50">
             <p className="text-[10px] text-muted-foreground mb-1.5 uppercase tracking-widest">System Status</p>
             <div className="flex items-center gap-2">
@@ -77,6 +77,7 @@ export function Shell({ children }: ShellProps) {
               <span className="text-xs font-mono">ONLINE</span>
             </div>
           </div>
+          <p className="text-[10px] text-muted-foreground/40 text-center font-mono tracking-widest">v1.0.0</p>
         </div>
       </aside>
 

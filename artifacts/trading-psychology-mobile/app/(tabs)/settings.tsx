@@ -206,24 +206,27 @@ export default function SettingsScreen() {
 
         {/* Legal / Disclaimer */}
         <Card style={{ gap: 12 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <Icon name="shield" size={14} color={colors.mutedForeground} />
-              <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold", letterSpacing: 0.2 }}>
-                Legal &amp; Disclaimer
-              </Text>
-            </View>
-            <View style={{ paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5, backgroundColor: colors.secondary }}>
-              <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_500Medium", letterSpacing: 0.5 }}>
-                v1.0
-              </Text>
-            </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Icon name="shield" size={14} color={colors.mutedForeground} />
+            <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold", letterSpacing: 0.2 }}>
+              Legal &amp; Disclaimer
+            </Text>
           </View>
           <View style={{ height: 1, backgroundColor: colors.border }} />
           <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 18, opacity: 0.85 }}>
             {DISCLAIMER}
           </Text>
         </Card>
+
+        {/* App version */}
+        <View style={{ alignItems: "center", gap: 4, paddingBottom: 8 }}>
+          <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5 }}>
+            ApexTerm
+          </Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular", letterSpacing: 1 }}>
+            v1.0.0
+          </Text>
+        </View>
       </ScrollView>
 
       <Modal transparent visible={!!confirmDeleteId} animationType="fade" onRequestClose={() => setConfirmDeleteId(null)}>
