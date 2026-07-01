@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import {
-  View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Platform, Switch, Alert,
+  View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Platform, Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
@@ -48,13 +48,6 @@ export default function SettingsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
-  async function toggleRule(id: string) {
-    const updated = rules.map(r => r.id === id ? { ...r, active: !r.active } : r);
-    setRules(updated);
-    await saveRules(updated);
-    Haptics.selectionAsync();
-  }
-
   async function startEdit(rule: Rule) {
     setEditingId(rule.id);
     setEditText(rule.text);
@@ -70,10 +63,23 @@ export default function SettingsScreen() {
   }
 
   async function deleteRule(id: string) {
-    const updated = rules.filter(r => r.id !== id);
-    setRules(updated);
-    await saveRules(updated);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert(
+      "Delete Rule",
+      "Are you sure you want to delete this rule?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const updated = rules.filter(r => r.id !== id);
+            setRules(updated);
+            await saveRules(updated);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          },
+        },
+      ]
+    );
   }
 
   async function handleIntervalChange(val: CheckInIntervalBase) {
@@ -187,14 +193,7 @@ export default function SettingsScreen() {
               </View>
             ) : (
               <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
-                <Switch
-                  value={rule.active}
-                  onValueChange={() => toggleRule(rule.id)}
-                  trackColor={{ false: colors.border, true: `${colors.success}80` }}
-                  thumbColor={rule.active ? colors.success : colors.mutedForeground}
-                  style={{ marginTop: 2 }}
-                />
-                <Text style={{ flex: 1, color: rule.active ? colors.foreground : colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20, opacity: rule.active ? 1 : 0.5 }}>
+                <Text style={{ flex: 1, color: colors.foreground, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20 }}>
                   {rule.text}
                 </Text>
                 <View style={{ flexDirection: "row", gap: 6 }}>
