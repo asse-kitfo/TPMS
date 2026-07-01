@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import {
-  View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Platform, Alert, Modal, Pressable,
+  View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Platform, Modal, Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
@@ -49,7 +49,7 @@ export default function SettingsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
-  async function startEdit(rule: Rule) {
+  function startEdit(rule: Rule) {
     setEditingId(rule.id);
     setEditText(rule.text);
   }
@@ -84,143 +84,147 @@ export default function SettingsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: bottomPad, gap: 24 }}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
-      <View>
-        <Text style={{ color: colors.foreground, fontSize: 26, fontFamily: "Inter_700Bold" }}>Settings</Text>
-      </View>
-
-      {/* Check-in interval */}
-      <Card style={{ gap: 14 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: bottomPad, gap: 24 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View>
-          <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold" }}>Check-in interval</Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 4, lineHeight: 18 }}>
-            Base interval for scheduled check-ins. Calm state doubles it; urge/anxious always triggers again in 2 min.
-          </Text>
+          <Text style={{ color: colors.foreground, fontSize: 26, fontFamily: "Inter_700Bold" }}>Settings</Text>
         </View>
-        <View style={{ gap: 8 }}>
-          {INTERVALS.map(opt => (
-            <TouchableOpacity
-              key={opt.value}
-              activeOpacity={0.8}
-              onPress={() => handleIntervalChange(opt.value)}
-              style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 10, borderWidth: 1.5, borderColor: interval === opt.value ? colors.primary : colors.border, backgroundColor: interval === opt.value ? `${colors.primary}12` : colors.secondary }}
-            >
-              <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: interval === opt.value ? colors.primary : colors.border, backgroundColor: interval === opt.value ? colors.primary : "transparent" }} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: interval === opt.value ? colors.primary : colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold" }}>{opt.label}</Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular" }}>{opt.desc}</Text>
-              </View>
-              {interval === opt.value && opt.value === 5 && (
-                <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: `${colors.primary}20` }}>
-                  <Text style={{ color: colors.primary, fontSize: 9, fontFamily: "Inter_600SemiBold" }}>DEFAULT</Text>
+
+        {/* Check-in interval */}
+        <Card style={{ gap: 14 }}>
+          <View>
+            <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold" }}>Check-in interval</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 4, lineHeight: 18 }}>
+              Base interval for scheduled check-ins. Calm state doubles it; urge/anxious always triggers again in 2 min.
+            </Text>
+          </View>
+          <View style={{ gap: 8 }}>
+            {INTERVALS.map(opt => (
+              <TouchableOpacity
+                key={opt.value}
+                activeOpacity={0.8}
+                onPress={() => handleIntervalChange(opt.value)}
+                style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 10, borderWidth: 1.5, borderColor: interval === opt.value ? colors.primary : colors.border, backgroundColor: interval === opt.value ? `${colors.primary}12` : colors.secondary }}
+              >
+                <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: interval === opt.value ? colors.primary : colors.border, backgroundColor: interval === opt.value ? colors.primary : "transparent" }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: interval === opt.value ? colors.primary : colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold" }}>{opt.label}</Text>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular" }}>{opt.desc}</Text>
+                </View>
+                {interval === opt.value && opt.value === 5 && (
+                  <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: `${colors.primary}20` }}>
+                    <Text style={{ color: colors.primary, fontSize: 9, fontFamily: "Inter_600SemiBold" }}>DEFAULT</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={{ padding: 10, borderRadius: 8, backgroundColor: colors.secondary, gap: 6 }}>
+            <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase" }}>
+              {"Cadence with " + interval + "min base"}
+            </Text>
+            <View style={{ gap: 3 }}>
+              <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_400Regular" }}>{"🙂 Calm → " + (interval * 2) + "min"}</Text>
+              <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_400Regular" }}>{"😐 Watching → " + interval + "min"}</Text>
+              <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_400Regular" }}>{"😬😰 Urge/Anxious → 2min"}</Text>
+            </View>
+          </View>
+        </Card>
+
+        {/* Lessons & Reminders */}
+        <Card style={{ gap: 14 }}>
+          <View>
+            <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold" }}>Lessons {"&"} Reminders</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 4, lineHeight: 18 }}>
+              Notes to your future self — lessons learned, reminders, things not to repeat.
+            </Text>
+          </View>
+
+          <View style={{ gap: 8 }}>
+            <TextInput
+              value={newRuleText}
+              onChangeText={setNewRuleText}
+              placeholder="Add a lesson or reminder…"
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+              style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.secondary, minHeight: 60, textAlignVertical: "top" }]}
+            />
+            <Button
+              label="Add Entry"
+              onPress={addRule}
+              disabled={!newRuleText.trim()}
+              variant="secondary"
+              icon={<Icon name="plus" size={14} color={colors.foreground} />}
+            />
+          </View>
+
+          {rules.length === 0 && (
+            <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", paddingVertical: 8 }}>
+              Nothing yet — add a lesson or reminder above
+            </Text>
+          )}
+
+          {rules.map((rule, idx) => (
+            <View key={rule.id} style={{ gap: 0 }}>
+              {idx > 0 && <View style={{ height: 1, backgroundColor: colors.border, marginBottom: 10 }} />}
+              {editingId === rule.id ? (
+                <View style={{ gap: 8 }}>
+                  <TextInput
+                    value={editText}
+                    onChangeText={setEditText}
+                    multiline
+                    autoFocus
+                    style={[styles.input, { color: colors.foreground, borderColor: colors.primary, backgroundColor: colors.secondary, minHeight: 60, textAlignVertical: "top" }]}
+                  />
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <Button label="Cancel" variant="ghost" onPress={() => setEditingId(null)} style={{ flex: 1 }} />
+                    <Button label="Save" onPress={saveEdit} style={{ flex: 2 }} />
+                  </View>
+                </View>
+              ) : (
+                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+                  <Text style={{ flex: 1, color: colors.foreground, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20 }}>
+                    {rule.text}
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 6 }}>
+                    <TouchableOpacity onPress={() => startEdit(rule)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Icon name="edit-2" size={14} color={colors.mutedForeground} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => deleteRule(rule.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Icon name="trash-2" size={14} color={colors.destructive} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
-            </TouchableOpacity>
+            </View>
           ))}
-        </View>
-        <View style={{ padding: 10, borderRadius: 8, backgroundColor: colors.secondary, gap: 6 }}>
-          <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase" }}>Cadence with {interval}min base</Text>
-          <View style={{ gap: 3 }}>
-            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_400Regular" }}>🙂 Calm → {interval * 2}min</Text>
-            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_400Regular" }}>😐 Watching → {interval}min</Text>
-            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_400Regular" }}>😬😰 Urge/Anxious → 2min</Text>
-          </View>
-        </View>
-      </Card>
+        </Card>
 
-      {/* Rules */}
-      <Card style={{ gap: 14 }}>
-        <View>
-          <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold" }}>Lessons & Reminders</Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 4, lineHeight: 18 }}>
-            Notes to your future self — lessons learned, reminders, things not to repeat.
+        {/* Disclaimer */}
+        <Card style={{ gap: 10 }}>
+          <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold" }}>Disclaimer</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 19 }}>
+            {DISCLAIMER}
           </Text>
-        </View>
+        </Card>
+      </ScrollView>
 
-        {/* Add new rule */}
-        <View style={{ gap: 8 }}>
-          <TextInput
-            value={newRuleText}
-            onChangeText={setNewRuleText}
-            placeholder="Add a lesson or reminder…"
-            placeholderTextColor={colors.mutedForeground}
-            multiline
-            style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.secondary, minHeight: 60, textAlignVertical: "top" }]}
-          />
-          <Button
-            label="Add Entry"
-            onPress={addRule}
-            disabled={!newRuleText.trim()}
-            variant="secondary"
-            icon={<Icon name="plus" size={14} color={colors.foreground} />}
-          />
-        </View>
-
-        {/* Rules list */}
-        {rules.length === 0 && (
-          <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", paddingVertical: 8 }}>
-            Nothing yet — add a lesson or reminder above
-          </Text>
-        )}
-
-        {rules.map((rule, idx) => (
-          <View key={rule.id} style={{ gap: 0 }}>
-            {idx > 0 && <View style={{ height: 1, backgroundColor: colors.border, marginBottom: 10 }} />}
-
-            {editingId === rule.id ? (
-              <View style={{ gap: 8 }}>
-                <TextInput
-                  value={editText}
-                  onChangeText={setEditText}
-                  multiline
-                  autoFocus
-                  style={[styles.input, { color: colors.foreground, borderColor: colors.primary, backgroundColor: colors.secondary, minHeight: 60, textAlignVertical: "top" }]}
-                />
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  <Button label="Cancel" variant="ghost" onPress={() => setEditingId(null)} style={{ flex: 1 }} />
-                  <Button label="Save" onPress={saveEdit} style={{ flex: 2 }} />
-                </View>
-              </View>
-            ) : (
-              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
-                <Text style={{ flex: 1, color: colors.foreground, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20 }}>
-                  {rule.text}
-                </Text>
-                <View style={{ flexDirection: "row", gap: 6 }}>
-                  <TouchableOpacity onPress={() => startEdit(rule)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Icon name="edit-2" size={14} color={colors.mutedForeground} />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => deleteRule(rule.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Icon name="trash-2" size={14} color={colors.destructive} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          </View>
-        ))}
-      </Card>
-
-      {/* Disclaimer */}
-      <Card style={{ gap: 10 }}>
-        <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold" }}>Disclaimer</Text>
-        <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 19 }}>
-          {DISCLAIMER}
-        </Text>
-      </Card>
-    </ScrollView>
-
-      {/* Confirm delete modal */}
       <Modal transparent visible={!!confirmDeleteId} animationType="fade" onRequestClose={() => setConfirmDeleteId(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 32 }} onPress={() => setConfirmDeleteId(null)}>
-          <Pressable style={{ backgroundColor: colors.card, borderRadius: 14, padding: 24, width: "100%", gap: 16 }} onPress={() => {}}>
-            <Text style={{ color: colors.foreground, fontSize: 16, fontFamily: "Inter_700Bold", textAlign: "center" }}>Delete Rule</Text>
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 32 }}
+          onPress={() => setConfirmDeleteId(null)}
+        >
+          <Pressable
+            style={{ backgroundColor: colors.card, borderRadius: 14, padding: 24, width: "100%", gap: 16 }}
+            onPress={() => { /* stop propagation */ }}
+          >
+            <Text style={{ color: colors.foreground, fontSize: 16, fontFamily: "Inter_700Bold", textAlign: "center" }}>Delete Entry</Text>
             <Text style={{ color: colors.mutedForeground, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 }}>
-              Are you sure you want to delete this rule?
+              Are you sure you want to delete this entry?
             </Text>
             <View style={{ flexDirection: "row", gap: 10 }}>
               <TouchableOpacity
