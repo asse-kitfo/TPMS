@@ -15,7 +15,7 @@ import {
   loadLocalSession, loadCheckInInterval, CheckInIntervalBase,
 } from "@/lib/storage";
 
-export default function QuickPlanScreen() {
+export default function GateScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -88,7 +88,7 @@ export default function QuickPlanScreen() {
           Trade logged
         </Text>
         <Text style={{ color: colors.mutedForeground, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22 }}>
-          Opening In Trade screen. First check-in in {baseInterval} minutes.
+          Opening Monitor screen. First check-in in {baseInterval} minutes.
         </Text>
       </View>
     );
@@ -104,7 +104,7 @@ export default function QuickPlanScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View>
-        <Text style={{ color: colors.foreground, fontSize: 26, fontFamily: "Inter_700Bold" }}>Quick Plan</Text>
+        <Text style={{ color: colors.foreground, fontSize: 26, fontFamily: "Inter_700Bold" }}>Gate</Text>
         <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular" }}>
           Under 15 seconds — not a gate, just a timestamp
         </Text>

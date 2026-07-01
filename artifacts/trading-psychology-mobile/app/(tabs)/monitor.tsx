@@ -341,7 +341,7 @@ export default function InTradeScreen() {
         <Icon name="activity" size={40} color={colors.border} />
         <Text style={{ color: colors.foreground, fontSize: 17, fontFamily: "Inter_700Bold", textAlign: "center" }}>No trade open</Text>
         <Text style={{ color: colors.mutedForeground, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22 }}>
-          Use the Plan tab to log a trade before entering MT5
+          Use the Gate tab to log a trade before entering MT5
         </Text>
         <Button label="Log a trade" onPress={() => router.push("/(tabs)/gate")} />
       </View>
@@ -362,7 +362,7 @@ export default function InTradeScreen() {
       {/* Header */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
         <View>
-          <Text style={{ color: colors.foreground, fontSize: 26, fontFamily: "Inter_700Bold" }}>In Trade</Text>
+          <Text style={{ color: colors.foreground, fontSize: 26, fontFamily: "Inter_700Bold" }}>Monitor</Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular" }}>
             {trade.asset} · {trade.direction.toUpperCase()} · {elapsed}
           </Text>

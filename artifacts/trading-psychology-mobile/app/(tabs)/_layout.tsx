@@ -27,8 +27,8 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Hub", tabBarIcon: ({ color }) => <Icon name="home" size={22} color={color} /> }} />
-      <Tabs.Screen name="gate" options={{ title: "Plan", tabBarIcon: ({ color }) => <Icon name="edit-2" size={22} color={color} /> }} />
-      <Tabs.Screen name="monitor" options={{ title: "In Trade", tabBarIcon: ({ color }) => <Icon name="activity" size={22} color={color} /> }} />
+      <Tabs.Screen name="gate" options={{ title: "Gate", tabBarIcon: ({ color }) => <Icon name="edit-2" size={22} color={color} /> }} />
+      <Tabs.Screen name="monitor" options={{ title: "Monitor", tabBarIcon: ({ color }) => <Icon name="activity" size={22} color={color} /> }} />
       <Tabs.Screen name="journal" options={{ title: "Journal", tabBarIcon: ({ color }) => <Icon name="list" size={22} color={color} /> }} />
       <Tabs.Screen name="settings" options={{ title: "Settings", tabBarIcon: ({ color }) => <Icon name="sliders" size={22} color={color} /> }} />
       <Tabs.Screen name="thought" options={{ href: null }} />
