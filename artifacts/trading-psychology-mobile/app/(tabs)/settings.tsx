@@ -122,11 +122,13 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        <View style={{ padding: 10, borderRadius: 8, backgroundColor: colors.secondary, gap: 4 }}>
+        <View style={{ padding: 10, borderRadius: 8, backgroundColor: colors.secondary, gap: 6 }}>
           <Text style={{ color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase" }}>Cadence with {interval}min base</Text>
-          <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 }}>
-            🙂 Calm → {interval * 2}min · 😐 Watching → {interval}min · 😬😰 Urge/Anxious → 2min
-          </Text>
+          <View style={{ gap: 3 }}>
+            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_400Regular" }}>🙂 Calm → {interval * 2}min</Text>
+            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_400Regular" }}>😐 Watching → {interval}min</Text>
+            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_400Regular" }}>😬😰 Urge/Anxious → 2min</Text>
+          </View>
         </View>
       </Card>
 
