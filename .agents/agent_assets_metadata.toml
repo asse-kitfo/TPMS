@@ -6,6 +6,24 @@ uri = "file://artifacts/trading-psychology-mobile/assets/images/icon.png"
 type = "image"
 title = "apexterm-app-icon"
 
+[[generated]]
+id = "-RVjEmq05F23lEEtYOIW_"
+uri = "file://artifacts/trading-psychology-mobile/assets/images/icon_v2a.png"
+type = "image"
+title = "apex triangle fintech icon"
+
+[[generated]]
+id = "qUowVID4ZIS1iABzVes-Z"
+uri = "file://artifacts/trading-psychology-mobile/assets/images/icon_v2b.png"
+type = "image"
+title = "apex blade letter premium icon"
+
+[[generated]]
+id = "kTUeY9dcIRSwv_K4VWJ19"
+uri = "file://artifacts/trading-psychology-mobile/assets/images/icon_v2c.png"
+type = "image"
+title = "mind chart psychology icon"
+
 [[outputs]]
 id = "h9Jd9g3EPY9EofcRW-MY-"
 uri = "file://artifacts/trading-psychology-mobile/assets/images/icon.png"
