@@ -27,7 +27,7 @@ export function Shell({ children }: ShellProps) {
     { href: "/cbt", label: "Thought Record", icon: MessageSquare, sub: "Real-time CBT tool" },
     { href: "/journal", label: "Debrief Log", icon: BookOpen, sub: "Post-trade records" },
     { href: "/analytics", label: "My Patterns", icon: BarChart2, sub: "Behavioral insights" },
-    { href: "/rules", label: "My Rules", icon: BookMarked, sub: "Trading rules & review" },
+    { href: "/rules", label: "Lessons & Reminders", icon: BookMarked, sub: "Notes to your future self" },
     { href: "/plans", label: "Setup Plans", icon: ListTodo, sub: "Pre-committed plans" },
     { href: "/replay", label: "Session Replay", icon: History, sub: "Full session timeline" },
   ];

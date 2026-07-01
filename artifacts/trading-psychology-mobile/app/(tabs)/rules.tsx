@@ -202,7 +202,7 @@ function RuleFormModal({
             <TextInput
               value={body}
               onChangeText={setBody}
-              placeholder="Write the full rule. Be explicit. Vague rules are ignored."
+              placeholder="Write the lesson or reminder. Be specific — vague notes get skipped."
               placeholderTextColor={colors.mutedForeground}
               multiline
               numberOfLines={5}
@@ -310,10 +310,10 @@ export default function RulesScreen() {
             <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
               <View>
                 <Text style={{ color: colors.foreground, fontSize: 26, fontFamily: "Inter_700Bold" }}>
-                  My Rules
+                  Lessons & Reminders
                 </Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular" }}>
-                  {rules.length} rule{rules.length !== 1 ? "s" : ""}
+                  {rules.length} {rules.length !== 1 ? "entries" : "entry"}
                 </Text>
               </View>
               <View style={{ flexDirection: "row", gap: 8 }}>
@@ -380,8 +380,8 @@ export default function RulesScreen() {
         ListEmptyComponent={() => (
           <EmptyState
             icon={<Icon name="bookmark" size={40} color={colors.border} />}
-            title="No rules yet"
-            subtitle="Add your first trading rule — written rules beat remembered ones"
+            title="Nothing here yet"
+            subtitle="Add your first lesson or reminder — written words beat fading memory"
           />
         )}
         renderItem={({ item, index }) => {

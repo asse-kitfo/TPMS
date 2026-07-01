@@ -113,7 +113,7 @@ function ReviewMode({ rules, onClose }: { rules: Rule[]; onClose: () => void }) 
       <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto" />
-          <p className="text-xl font-semibold">No rules to review</p>
+          <p className="text-xl font-semibold">Nothing to review yet</p>
           <Button onClick={onClose}>Close</Button>
         </div>
       </div>
@@ -338,10 +338,10 @@ export default function TradingRules() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-              <BookMarked className="h-8 w-8 text-primary" /> My Trading Rules
+              <BookMarked className="h-8 w-8 text-primary" /> Lessons & Reminders
             </h1>
             <p className="text-muted-foreground mt-1">
-              {rules.length} rule{rules.length !== 1 ? "s" : ""} — your cortex contracts with your amygdala, written in advance.
+              {rules.length} {rules.length !== 1 ? "entries" : "entry"} — notes to your future self, written in advance.
             </p>
           </div>
           <div className="flex gap-2">
@@ -415,9 +415,9 @@ export default function TradingRules() {
         {filteredRules.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center gap-4">
             <BookMarked className="h-12 w-12 text-muted-foreground opacity-20" />
-            <p className="text-muted-foreground">No rules in this category yet.</p>
+            <p className="text-muted-foreground">Nothing in this category yet.</p>
             <Button size="sm" variant="outline" onClick={() => { setShowAddForm(true); }}>
-              <Plus className="h-4 w-4 mr-2" /> Add First Rule
+              <Plus className="h-4 w-4 mr-2" /> Add First Entry
             </Button>
           </div>
         ) : (

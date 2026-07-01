@@ -136,9 +136,9 @@ export default function SettingsScreen() {
       {/* Rules */}
       <Card style={{ gap: 14 }}>
         <View>
-          <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold" }}>Personal Rules</Text>
+          <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold" }}>Lessons & Reminders</Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 4, lineHeight: 18 }}>
-            Reference only — not part of any gate or blocking logic. Just your own words to yourself.
+            Notes to your future self — lessons learned, reminders, things not to repeat.
           </Text>
         </View>
 
@@ -147,13 +147,13 @@ export default function SettingsScreen() {
           <TextInput
             value={newRuleText}
             onChangeText={setNewRuleText}
-            placeholder="Add a personal rule…"
+            placeholder="Add a lesson or reminder…"
             placeholderTextColor={colors.mutedForeground}
             multiline
             style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.secondary, minHeight: 60, textAlignVertical: "top" }]}
           />
           <Button
-            label="Add Rule"
+            label="Add Entry"
             onPress={addRule}
             disabled={!newRuleText.trim()}
             variant="secondary"
@@ -164,7 +164,7 @@ export default function SettingsScreen() {
         {/* Rules list */}
         {rules.length === 0 && (
           <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", paddingVertical: 8 }}>
-            No rules yet — add one above
+            Nothing yet — add a lesson or reminder above
           </Text>
         )}
 
