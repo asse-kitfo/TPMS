@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import {
-  View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Platform, Alert,
+  View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Platform, Alert, Modal, Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
@@ -30,6 +30,7 @@ export default function SettingsScreen() {
   const [newRuleText, setNewRuleText] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const topPad = Platform.OS === "web" ? webTop : insets.top;
   const bottomPad = Platform.OS === "web" ? webBottom : 100;
@@ -62,26 +63,17 @@ export default function SettingsScreen() {
     setEditText("");
   }
 
-  async function deleteRule(id: string) {
-    const doDelete = async () => {
-      const updated = rules.filter(r => r.id !== id);
-      setRules(updated);
-      await saveRules(updated);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    };
+  function deleteRule(id: string) {
+    setConfirmDeleteId(id);
+  }
 
-    if (Platform.OS === "web") {
-      if (window.confirm("Delete this rule?")) await doDelete();
-    } else {
-      Alert.alert(
-        "Delete Rule",
-        "Are you sure you want to delete this rule?",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Delete", style: "destructive", onPress: doDelete },
-        ]
-      );
-    }
+  async function confirmDelete() {
+    if (!confirmDeleteId) return;
+    const updated = rules.filter(r => r.id !== confirmDeleteId);
+    setRules(updated);
+    await saveRules(updated);
+    setConfirmDeleteId(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   }
 
   async function handleIntervalChange(val: CheckInIntervalBase) {
@@ -91,8 +83,9 @@ export default function SettingsScreen() {
   }
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={{ flex: 1 }}
       contentContainerStyle={{ paddingTop: topPad + 16, paddingHorizontal: 16, paddingBottom: bottomPad, gap: 24 }}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
@@ -220,6 +213,33 @@ export default function SettingsScreen() {
         </Text>
       </Card>
     </ScrollView>
+
+      {/* Confirm delete modal */}
+      <Modal transparent visible={!!confirmDeleteId} animationType="fade" onRequestClose={() => setConfirmDeleteId(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 32 }} onPress={() => setConfirmDeleteId(null)}>
+          <Pressable style={{ backgroundColor: colors.card, borderRadius: 14, padding: 24, width: "100%", gap: 16 }} onPress={() => {}}>
+            <Text style={{ color: colors.foreground, fontSize: 16, fontFamily: "Inter_700Bold", textAlign: "center" }}>Delete Rule</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 }}>
+              Are you sure you want to delete this rule?
+            </Text>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <TouchableOpacity
+                onPress={() => setConfirmDeleteId(null)}
+                style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: "center" }}
+              >
+                <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold" }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmDelete}
+                style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: colors.destructive, alignItems: "center" }}
+              >
+                <Text style={{ color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" }}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
   );
 }
 
