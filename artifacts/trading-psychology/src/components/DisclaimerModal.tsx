@@ -2,23 +2,38 @@ import { useState, useEffect } from "react";
 import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const STORAGE_KEY = "apexterm-disclaimer-accepted";
+const COOKIE_NAME = "apexterm-disclaimer-v1";
+const COOKIE_DAYS = 365;
+
+function hasAccepted(): boolean {
+  try {
+    return document.cookie.split(";").some(c => c.trim().startsWith(COOKIE_NAME + "="));
+  } catch {
+    return false;
+  }
+}
+
+function setAccepted() {
+  try {
+    const expires = new Date();
+    expires.setDate(expires.getDate() + COOKIE_DAYS);
+    document.cookie = `${COOKIE_NAME}=1; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+  } catch {
+    // cookie write unavailable — degrade silently
+  }
+}
 
 export function DisclaimerModal() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    try {
-      if (!localStorage.getItem(STORAGE_KEY)) setOpen(true);
-    } catch {
-      // localStorage unavailable
-    }
+    if (!hasAccepted()) setOpen(true);
   }, []);
 
   if (!open) return null;
 
   const accept = () => {
-    try { localStorage.setItem(STORAGE_KEY, "1"); } catch { /* ignore */ }
+    setAccepted();
     setOpen(false);
   };
 
@@ -32,7 +47,7 @@ export function DisclaimerModal() {
 
         <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
           <p>
-            <strong className="text-foreground">ApexTerm is a psychological training tool</strong>, not a financial advisory service. Nothing in this application constitutes investment advice, trading recommendations, or a guarantee of trading performance.
+            <strong className="text-foreground">ApexTerm is a psychological awareness tool</strong>, not a financial advisory service. Nothing in this application constitutes investment advice, trading recommendations, or a guarantee of trading performance.
           </p>
           <p>
             The Trade Gate, verdict system, and scoring algorithms are designed to help you examine your <em>psychological state</em> before trading decisions — not to predict market outcomes. All verdicts reflect your self-reported emotional and cognitive state only.
@@ -42,13 +57,13 @@ export function DisclaimerModal() {
           </p>
           <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
             <p className="text-foreground font-medium">
-              By continuing, you confirm you understand this is a psychological exercise tool, not financial advice, and that all risk remains with you as the trader.
+              By continuing, you confirm you understand this is a psychological awareness tool, not financial advice, and that all risk remains with you as the trader.
             </p>
           </div>
         </div>
 
         <Button size="lg" className="w-full h-12 font-bold" onClick={accept}>
-          I Understand — Begin Training
+          I Understand — Open ApexTerm
         </Button>
       </div>
     </div>
