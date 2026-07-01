@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { View, Text, FlatList, StyleSheet, RefreshControl, Platform, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
 import { useColors } from "@/hooks/useColors";
 import { Badge, EmptyState, webTop, webBottom } from "@/components/UI";
@@ -195,6 +195,7 @@ function TradeCard({ item }: { item: CompletedTrade }) {
 export default function JournalScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [trades, setTrades] = useState<CompletedTrade[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -256,9 +257,10 @@ export default function JournalScreen() {
       )}
       ListEmptyComponent={() => (
         <EmptyState
-          icon={<Icon name="list" size={40} color={colors.border} />}
+          icon={<Icon name="book-open" size={40} color={colors.border} />}
           title="No trades yet"
-          subtitle="Close a trade in the In Trade tab to see it here"
+          subtitle="Log a trade in the Gate tab, then close it in Monitor. It will appear here with your emotional timeline."
+          action={{ label: "Open Gate", onPress: () => router.push("/(tabs)/gate") }}
         />
       )}
       renderItem={({ item }) => <TradeCard item={item} />}

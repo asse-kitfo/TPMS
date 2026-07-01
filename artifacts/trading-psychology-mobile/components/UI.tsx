@@ -213,16 +213,30 @@ export function OptionChip({ label, selected, onPress, color }: OptionChipProps)
   );
 }
 
-export function EmptyState({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle?: string }) {
+export function EmptyState({ icon, title, subtitle, action }: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  action?: { label: string; onPress: () => void };
+}) {
   const colors = useColors();
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 60, gap: 12 }}>
       {icon}
       <Text style={{ color: colors.foreground, fontSize: 17, fontFamily: "Inter_600SemiBold", textAlign: "center" }}>{title}</Text>
       {subtitle && (
-        <Text style={{ color: colors.mutedForeground, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", maxWidth: 260 }}>
+        <Text style={{ color: colors.mutedForeground, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", maxWidth: 260, lineHeight: 20 }}>
           {subtitle}
         </Text>
+      )}
+      {action && (
+        <TouchableOpacity
+          onPress={action.onPress}
+          activeOpacity={0.75}
+          style={{ marginTop: 4, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: colors.primary }}
+        >
+          <Text style={{ color: colors.primary, fontSize: 14, fontFamily: "Inter_600SemiBold" }}>{action.label}</Text>
+        </TouchableOpacity>
       )}
     </View>
   );

@@ -1,11 +1,12 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { useListTrades } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Loader2, CheckCircle2, XCircle, TrendingUp, TrendingDown, Brain,
-  Filter, AlertTriangle, Zap, Activity
+  Filter, AlertTriangle, Zap, Activity, BookOpen
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -175,18 +176,34 @@ export default function Debrief() {
       )}
 
       {filtered.length === 0 && completed.length === 0 ? (
-        <Card>
-          <CardContent className="py-16 text-center text-muted-foreground">
-            <Brain className="h-12 w-12 mx-auto opacity-20 mb-4" />
-            <p>No completed trade debriefs yet.</p>
-            <p className="text-sm mt-1">Complete a trade in the Active Monitor to see records here.</p>
+        <Card className="border-dashed border-2 border-border/50">
+          <CardContent className="py-16 text-center space-y-4">
+            <BookOpen className="h-12 w-12 mx-auto text-muted-foreground opacity-25" />
+            <div>
+              <p className="font-semibold text-lg text-foreground">No trade debriefs yet</p>
+              <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">
+                Debriefs appear here after you close a trade in the Active Monitor. Start by opening a session.
+              </p>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/">Go to Command Center</Link>
+            </Button>
           </CardContent>
         </Card>
       ) : filtered.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            <Filter className="h-8 w-8 mx-auto opacity-30 mb-3" />
-            <p>No trades match the current filter.</p>
+          <CardContent className="py-12 text-center space-y-3 text-muted-foreground">
+            <Filter className="h-8 w-8 mx-auto opacity-30" />
+            <div>
+              <p className="font-medium text-foreground">No trades match this filter</p>
+              <p className="text-sm mt-1">Try adjusting the outcome or plan filter above.</p>
+            </div>
+            <button
+              onClick={() => { setOutcomeFilter("ALL"); setPlanFilter("ALL"); }}
+              className="text-xs text-primary underline underline-offset-2 hover:opacity-80 transition-opacity"
+            >
+              Clear all filters
+            </button>
           </CardContent>
         </Card>
       ) : (

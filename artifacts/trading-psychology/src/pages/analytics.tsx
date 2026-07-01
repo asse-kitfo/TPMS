@@ -158,10 +158,13 @@ export default function BehavioralAnalytics() {
           </CardHeader>
           <CardContent>
             {gradeChartData.length === 0 || gradeChartData.every((d: { count: number }) => d.count === 0) ? (
-              <div className="h-[260px] flex items-center justify-center text-muted-foreground text-sm">
-                <div className="text-center">
-                  <Brain className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  <p>No trade data yet</p>
+              <div className="h-[260px] flex items-center justify-center">
+                <div className="text-center space-y-3">
+                  <BarChart2 className="h-10 w-10 mx-auto text-muted-foreground opacity-25" />
+                  <div>
+                    <p className="font-medium text-foreground text-sm">No trade data yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Complete trades via the Active Monitor to see your edge by setup grade.</p>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -202,10 +205,13 @@ export default function BehavioralAnalytics() {
           </CardHeader>
           <CardContent>
             {emotionChartData.length === 0 ? (
-              <div className="h-[260px] flex items-center justify-center text-muted-foreground text-sm">
-                <div className="text-center">
-                  <Brain className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  <p>Complete pre-trade checks to see emotion data</p>
+              <div className="h-[260px] flex items-center justify-center">
+                <div className="text-center space-y-3">
+                  <Brain className="h-10 w-10 mx-auto text-muted-foreground opacity-25" />
+                  <div>
+                    <p className="font-medium text-foreground text-sm">No psychological data yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Run pre-trade checks via the Trade Gate to track how your emotional state affects outcomes.</p>
+                  </div>
                 </div>
               </div>
             ) : (
