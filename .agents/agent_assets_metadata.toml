@@ -36,6 +36,24 @@ uri = "file://artifacts/trading-psychology-mobile/assets/images/icon_v3b.png"
 type = "image"
 title = "apex A triangle peak candlestick"
 
+[[generated]]
+id = "mmPiuxUyLAFeUg34Ww_1X"
+uri = "file://attached_assets/icon_v1.png"
+type = "image"
+title = "icon variant 1 clean A candlestick"
+
+[[generated]]
+id = "mNgwTbZ69dc_6-2KuKgi2"
+uri = "file://attached_assets/icon_v2.png"
+type = "image"
+title = "icon variant 2 spike breakout A"
+
+[[generated]]
+id = "9FwEolTl-tQZn6-oUQ9EZ"
+uri = "file://attached_assets/icon_v3.png"
+type = "image"
+title = "icon variant 3 candlestick A construction"
+
 [[outputs]]
 id = "h9Jd9g3EPY9EofcRW-MY-"
 uri = "file://artifacts/trading-psychology-mobile/assets/images/icon.png"
