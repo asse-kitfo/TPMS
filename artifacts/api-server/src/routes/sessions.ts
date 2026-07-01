@@ -18,7 +18,7 @@ router.get("/current", async (req, res) => {
     .limit(1);
 
   if (sessions.length === 0) {
-    return res.status(404).json({ error: "No active session" });
+    return res.status(200).json(null);
   }
 
   const s = sessions[0];
