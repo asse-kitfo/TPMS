@@ -54,6 +54,24 @@ uri = "file://attached_assets/icon_v3.png"
 type = "image"
 title = "icon variant 3 candlestick A construction"
 
+[[generated]]
+id = "aanDXPZHONw6ujfg0ZBTD"
+uri = "file://attached_assets/color_violet_blue.png"
+type = "image"
+title = "icon violet blue gradient"
+
+[[generated]]
+id = "ud8Cd5R8MpT8wZWE5Q5lf"
+uri = "file://attached_assets/color_emerald_gold.png"
+type = "image"
+title = "icon emerald gold gradient"
+
+[[generated]]
+id = "_tm6R10YIXh1FrPfy5Zt2"
+uri = "file://attached_assets/color_platinum_gold.png"
+type = "image"
+title = "icon platinum gold gradient"
+
 [[outputs]]
 id = "h9Jd9g3EPY9EofcRW-MY-"
 uri = "file://artifacts/trading-psychology-mobile/assets/images/icon.png"
